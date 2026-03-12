@@ -171,7 +171,7 @@ export function VendorOrders() {
                 <div className="flex items-start justify-between mb-4">
                   <div>
                     <h3 className="font-bold text-lg text-gray-900 mb-1">
-                      Order from {order.profiles.name}
+                      Order from {order.profiles?.name || 'Customer'}
                     </h3>
                     <p className="text-sm text-gray-600">
                       {new Date(order.created_at).toLocaleDateString()} at{' '}
