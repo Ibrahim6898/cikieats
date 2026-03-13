@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSettings } from '../../contexts/SettingsContext';
 import { supabase } from '../../lib/supabase';
 import { ArrowLeft, MapPin, Phone, CheckCircle, Truck, XCircle, History, Package } from 'lucide-react';
 
@@ -36,6 +37,7 @@ function getStepIndex(status: string) {
 export function RiderOrders() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { getSetting } = useSettings();
   const [activeOrders, setActiveOrders] = useState<Order[]>([]);
   const [historyOrders, setHistoryOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -221,7 +223,7 @@ export function RiderOrders() {
              </div>
           </div>
           <div className="text-right">
-            <p className="text-2xl font-black text-green-600 tracking-tighter">₦{order.total_price.toFixed(2)}</p>
+            <p className="text-2xl font-black text-green-600 tracking-tighter">{getSetting('currency_symbol', '₦')}{order.total_price.toFixed(2)}</p>
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Order Total</p>
           </div>
         </div>
@@ -334,7 +336,7 @@ export function RiderOrders() {
         </div>
       </div>
       <div className="text-right">
-        <p className="font-black text-xl text-green-600 tracking-tighter">+₦{(order.total_price * 0.1).toFixed(2)}</p>
+        <p className="font-black text-xl text-green-600 tracking-tighter">+{getSetting('currency_symbol', '₦')}{(order.total_price * 0.1).toFixed(2)}</p>
         <div className="flex items-center gap-1 justify-end mt-1">
            <CheckCircle className="w-3 h-3 text-green-500" />
            <span className="text-[10px] font-black uppercase tracking-widest text-green-600">DELIVERED</span>

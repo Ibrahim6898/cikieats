@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSettings } from '../../contexts/SettingsContext';
 import { supabase } from '../../lib/supabase';
 import { ArrowLeft, Banknote, TrendingUp } from 'lucide-react';
 
@@ -17,6 +18,7 @@ interface Delivery {
 export function RiderEarnings() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { getSetting } = useSettings();
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -114,7 +116,7 @@ export function RiderEarnings() {
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Payout</p>
             </div>
             <p className="text-sm font-black text-gray-500 uppercase tracking-widest mb-1">Total Earnings</p>
-            <p className="text-4xl font-black text-green-600 tracking-tighter">₦{stats.totalEarnings.toFixed(2)}</p>
+            <p className="text-4xl font-black text-green-600 tracking-tighter">{getSetting('currency_symbol', '₦')}{stats.totalEarnings.toFixed(2)}</p>
           </div>
 
           <div className="glass-card rounded-[32px] p-8 premium-shadow hover:scale-[1.02] transition-transform duration-300 border border-white/50">
@@ -136,7 +138,7 @@ export function RiderEarnings() {
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Efficiency</p>
             </div>
             <p className="text-sm font-black text-gray-500 uppercase tracking-widest mb-1">Avg per Delivery</p>
-            <p className="text-4xl font-black text-orange-600 tracking-tighter">₦{stats.averagePerDelivery.toFixed(2)}</p>
+            <p className="text-4xl font-black text-orange-600 tracking-tighter">{getSetting('currency_symbol', '₦')}{stats.averagePerDelivery.toFixed(2)}</p>
           </div>
         </div>
 
@@ -172,7 +174,7 @@ export function RiderEarnings() {
                   </div>
                   <div className="text-right">
                     <p className="font-black text-xl text-green-600 tracking-tighter">
-                      +₦{((delivery as any).total_price * 0.1).toFixed(2)}
+                      +{getSetting('currency_symbol', '₦')}{((delivery as any).total_price * 0.1).toFixed(2)}
                     </p>
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mt-1">
                       10% commission

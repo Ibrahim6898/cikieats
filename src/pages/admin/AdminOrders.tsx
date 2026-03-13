@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
+import { useSettings } from '../../contexts/SettingsContext';
 import { ArrowLeft, XCircle, ShoppingBag } from 'lucide-react';
 
 interface Order {
@@ -18,12 +19,14 @@ interface Order {
 
 export function AdminOrders() {
   const navigate = useNavigate();
+  const { getSetting } = useSettings();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchOrders();
-    subscribeToOrders();
+    const channel = subscribeToOrders();
+    return () => { if (channel) supabase.removeChannel(channel); };
   }, []);
 
   const fetchOrders = async () => {
@@ -61,10 +64,7 @@ export function AdminOrders() {
         }
       )
       .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return channel;
   };
 
   const cancelOrder = async (orderId: string) => {
@@ -133,7 +133,6 @@ export function AdminOrders() {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-10">
-
         <div className="space-y-4">
           {orders.length === 0 ? (
             <div className="glass-card rounded-[40px] p-20 text-center">
@@ -170,7 +169,7 @@ export function AdminOrders() {
                   <div className="flex items-center gap-12 px-8 py-4 bg-gray-50/50 rounded-3xl border border-gray-100">
                     <div>
                       <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">Total Amount</p>
-                      <p className="text-lg font-black text-gray-900 tracking-tighter">₦{order.total_price.toFixed(2)}</p>
+                      <p className="text-lg font-black text-gray-900 tracking-tighter">{getSetting('currency_symbol', '₦')}{order.total_price.toFixed(2)}</p>
                     </div>
                     <div className="w-px h-8 bg-gray-200" />
                     <div>

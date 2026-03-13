@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSettings } from '../../contexts/SettingsContext';
 import { supabase } from '../../lib/supabase';
 import { Package, Clock, CheckCircle, XCircle } from 'lucide-react';
 
@@ -33,6 +34,7 @@ const statusSteps = [
 export function Orders() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { getSetting } = useSettings();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -168,7 +170,7 @@ export function Orders() {
                       </div>
                       <div className="text-right">
                         <p className="text-3xl font-black text-green-600 tracking-tighter">
-                          ₦{order.total_price.toFixed(2)}
+                          {getSetting('currency_symbol', '₦')}{order.total_price.toFixed(2)}
                         </p>
                         <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest mt-2 ${isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
                           {order.status.replace('_', ' ')}

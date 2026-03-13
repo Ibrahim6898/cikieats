@@ -372,7 +372,7 @@ export function VendorDashboard() {
                 </div>
               ))}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Delivery Fee (₦)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Delivery Fee ({getSetting('currency_symbol', '₦')})</label>
                 <input type="number" name="delivery_fee" required min="0" step="0.01"
                   value={formData.delivery_fee} onChange={handleChange}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"

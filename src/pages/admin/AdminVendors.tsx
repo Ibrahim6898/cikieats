@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
+import { useSettings } from '../../contexts/SettingsContext';
 import {
   ArrowLeft, CheckCircle, XCircle, Trash2,
   PauseCircle, PlayCircle, Store
@@ -23,16 +24,18 @@ interface Vendor {
 
 export function AdminVendors() {
   const navigate = useNavigate();
+  const { getSetting } = useSettings();
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [actionLoading, setActionLoading] = useState<string | null>(null); // tracks which vendor is being actioned
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected' | 'suspended'>('all');
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   useEffect(() => {
     fetchVendors();
-    subscribeToVendors();
+    const channel = subscribeToVendors();
+    return () => { if (channel) supabase.removeChannel(channel); };
   }, []);
 
   const fetchVendors = async () => {
@@ -65,7 +68,7 @@ export function AdminVendors() {
       .channel('vendors_changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'vendors' }, fetchVendors)
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return channel;
   };
 
   const updateStatus = async (vendorId: string, newStatus: string) => {
@@ -216,8 +219,8 @@ export function AdminVendors() {
                     </div>
                     <div className="w-px h-8 bg-gray-200" />
                     <div>
-                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">Delivery Fee</p>
-                      <p className="text-sm font-black text-gray-900">₦{Number(vendor.delivery_fee).toFixed(0)}</p>
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Fee</p>
+                      <p className="text-lg font-black text-gray-900 tracking-tighter">{getSetting('currency_symbol', '₦')}{vendor.delivery_fee.toFixed(2)}</p>
                     </div>
                     <div className="w-px h-8 bg-gray-200" />
                     <div>

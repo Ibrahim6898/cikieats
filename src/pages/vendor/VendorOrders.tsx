@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSettings } from '../../contexts/SettingsContext';
 import { supabase } from '../../lib/supabase';
 import { ArrowLeft, Clock } from 'lucide-react';
 
@@ -25,6 +26,7 @@ interface Order {
 export function VendorOrders() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { getSetting } = useSettings();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -207,7 +209,7 @@ export function VendorOrders() {
 
                 <div className="flex items-center justify-between pt-4 border-t">
                   <p className="text-xl font-bold text-green-600">
-                    ₦{order.total_price.toFixed(2)}
+                    {getSetting('currency_symbol', '₦')}{order.total_price.toFixed(2)}
                   </p>
                   <div className="flex gap-2">
                     {getAvailableActions(order.status).map((action) => (

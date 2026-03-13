@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSettings } from '../../contexts/SettingsContext';
 import { supabase } from '../../lib/supabase';
 import { ArrowLeft, Plus, CreditCard as Edit, Trash2, ImagePlus, X } from 'lucide-react';
 
@@ -16,6 +17,7 @@ interface MenuItem {
 export function MenuManagement() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { getSetting } = useSettings();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -250,7 +252,7 @@ export function MenuManagement() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Price (₦)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Price ({getSetting('currency_symbol', '₦')})</label>
                 <input
                   type="number"
                   name="price"
@@ -372,7 +374,7 @@ export function MenuManagement() {
                     <p className="text-sm text-gray-600 mb-3 line-clamp-2">{item.description}</p>
                   )}
                   <p className="text-xl font-bold text-green-600 mb-4">
-                    ₦{item.price.toFixed(2)}
+                    {getSetting('currency_symbol', '₦')}{item.price.toFixed(2)}
                   </p>
                   <div className="flex items-center gap-2">
                     <button
