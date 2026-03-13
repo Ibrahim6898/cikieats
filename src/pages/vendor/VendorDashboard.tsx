@@ -6,7 +6,7 @@ import { supabase } from '../../lib/supabase';
 import {
   Store, Menu, ShoppingBag, AlertCircle,
   ImagePlus, X, Pencil, PauseCircle,
-  TrendingUp, Banknote, Clock, CheckCircle, ChevronDown, ChevronUp, Mail, Phone, MessageCircle
+  TrendingUp, Banknote, Clock, CheckCircle, ChevronDown, ChevronUp, Mail, Phone, MessageCircle, Star
 } from 'lucide-react';
 
 interface Vendor {
@@ -42,6 +42,15 @@ interface VendorStats {
   todayEarnings: number;
   activeOrders: number;
   completedToday: number;
+  averageRating: number;
+}
+
+interface Review {
+  id: string;
+  rating: number;
+  comment: string | null;
+  created_at: string;
+  profiles: { name: string };
 }
 
 export function VendorDashboard() {
@@ -84,8 +93,10 @@ export function VendorDashboard() {
   const [stats, setStats] = useState<VendorStats>({
     todayEarnings: 0,
     activeOrders: 0,
-    completedToday: 0
+    completedToday: 0,
+    averageRating: 0
   });
+  const [reviews, setReviews] = useState<Review[]>([]);
   const [showProfile, setShowProfile] = useState(false); // Collapsible profile for secondary priority
 
   useEffect(() => {
@@ -135,7 +146,8 @@ export function VendorDashboard() {
         .select(`
           id, status, total_price, created_at,
           profiles!orders_customer_id_fkey(name),
-          order_items(quantity, menu_items(name))
+          order_items(quantity, menu_items(name)),
+          payout:payouts(amount)
         `)
         .eq('vendor_id', vendorId)
         .in('status', ['pending', 'accepted', 'preparing', 'ready', 'picked_up'])
@@ -143,26 +155,52 @@ export function VendorDashboard() {
         .limit(5);
 
       if (ordersError) throw ordersError;
-      setActiveOrders(ordersData || []);
+      
+      const ordersWithPayouts = (ordersData || []) as any[];
+      ordersWithPayouts.forEach(order => {
+        if (order.payout && Array.isArray(order.payout)) {
+          order.payout = order.payout[0];
+        }
+      });
+      setActiveOrders(ordersWithPayouts);
 
       // 2. Fetch Stats
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      const { data: todayOrders, error: statsError } = await (supabase
-        .from('orders') as any)
-        .select('total_price, status, created_at')
-        .eq('vendor_id', vendorId)
-        .gte('created_at', today.toISOString());
+      const [statsRes, payoutsRes, reviewsRes] = await Promise.all([
+        supabase
+          .from('orders')
+          .select('id, status')
+          .eq('vendor_id', vendorId)
+          .gte('created_at', today.toISOString()),
+        user?.id ? supabase
+          .from('payouts')
+          .select('amount')
+          .eq('user_id', user.id)
+          .eq('role', 'vendor')
+          .gte('created_at', today.toISOString()) : Promise.resolve({ data: [] }),
+        supabase
+          .from('reviews')
+          .select('id, rating, comment, created_at, profiles(name)')
+          .eq('vendor_id', vendorId)
+          .order('created_at', { ascending: false })
+          .limit(5)
+      ]);
 
-      if (statsError) throw statsError;
+      const todayOrders = statsRes.data || [];
+      const todayPayouts = payoutsRes.data || [];
+      const reviewsData = (reviewsRes.data || []) as Review[];
+      setReviews(reviewsData);
+
+      const totalRating = reviewsData.reduce((sum, r) => sum + r.rating, 0);
+      const avgRating = reviewsData.length > 0 ? totalRating / reviewsData.length : 0;
 
       const statsUpdate = {
-        todayEarnings: todayOrders
-          ?.filter((o: any) => o.status === 'delivered')
-          .reduce((sum: number, o: any) => sum + Number(o.total_price), 0) || 0,
+        todayEarnings: todayPayouts.reduce((sum: number, p: any) => sum + Number(p.amount), 0),
         activeOrders: ordersData?.length || 0,
-        completedToday: todayOrders?.filter((o: any) => o.status === 'delivered').length || 0
+        completedToday: todayOrders.filter((o: any) => o.status === 'delivered').length || 0,
+        averageRating: avgRating
       };
       setStats(statsUpdate);
 
@@ -598,8 +636,13 @@ export function VendorDashboard() {
                       </div>
                        <div className="mt-4 lg:mt-0 flex items-center gap-4">
                         <div className="text-right">
-                          <p className="text-lg font-black text-gray-900">{getSetting('currency_symbol', '₦')}{order.total_price.toFixed(2)}</p>
-                          <p className="text-[10px] text-gray-400 font-bold uppercase">{new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                          <p className="text-lg font-black text-gray-900">
+                            {getSetting('currency_symbol', '₦')}{((order as any).payout?.amount || order.total_price * 0.9).toFixed(2)}
+                          </p>
+                          <div className="flex flex-col items-end">
+                            <p className="text-[10px] text-gray-400 font-bold uppercase">Net Share</p>
+                            <p className="text-[10px] text-gray-400 font-bold uppercase">{new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                          </div>
                         </div>
                         <div className="flex flex-col gap-2">
                           {order.status === 'pending' && (
@@ -622,6 +665,48 @@ export function VendorDashboard() {
                           )}
                         </div>
                       </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Recent Reviews Section */}
+            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden mt-8">
+              <div className="p-6 border-b border-gray-50 flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">Recent Customer Reviews</h2>
+                  <p className="text-xs text-gray-400 font-medium">What your customers are saying</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Star className="w-4 h-4 text-yellow-400 fill-current" />
+                  <span className="text-lg font-black text-gray-900">{stats.averageRating.toFixed(1)}</span>
+                </div>
+              </div>
+
+              <div className="divide-y divide-gray-50">
+                {reviews.length === 0 ? (
+                  <div className="p-12 text-center text-gray-400 italic">
+                    <Star className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                    No reviews yet.
+                  </div>
+                ) : (
+                  reviews.map((review) => (
+                    <div key={review.id} className="p-6 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-gray-900">{review.profiles.name}</span>
+                          <div className="flex gap-0.5">
+                            {[1, 2, 3, 4, 5].map((s) => (
+                              <Star key={s} className={`w-3 h-3 ${s <= review.rating ? 'text-yellow-400 fill-current' : 'text-gray-200'}`} />
+                            ))}
+                          </div>
+                        </div>
+                        <span className="text-[10px] text-gray-400 font-bold uppercase">
+                          {new Date(review.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600 leading-relaxed italic">"{review.comment || 'No comment provided.'}"</p>
                     </div>
                   ))
                 )}

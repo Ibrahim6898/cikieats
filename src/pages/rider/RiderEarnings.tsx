@@ -49,20 +49,36 @@ export function RiderEarnings() {
           return;
         }
 
-        const { data: ordersData, error } = await (supabase
+        const { data: ordersData, error: ordersError } = await (supabase
           .from('orders') as any)
           .select(`
             *,
-            vendors(restaurant_name)
+            vendors(restaurant_name),
+            payout:payouts(amount)
           `)
           .eq('rider_id', riderData.id)
           .eq('status', 'delivered')
           .order('created_at', { ascending: false });
 
-        if (error) throw error;
+        if (ordersError) throw ordersError;
+
+        const { data: payoutsTotalData, error: payoutsTotalError } = await supabase
+          .from('payouts')
+          .select('amount')
+          .eq('user_id', user.id)
+          .eq('role', 'rider');
+
+        if (payoutsTotalError) throw payoutsTotalError;
 
         const deliveredOrders = (ordersData || []) as any[];
-        const totalEarnings = deliveredOrders.reduce((sum, order) => sum + (order.total_price * 0.1), 0);
+        // Extract the payout amount if it exists (Supabase returns an array for the join if not single, but should be single here)
+        deliveredOrders.forEach(order => {
+            if (order.payout && Array.isArray(order.payout)) {
+                order.payout = order.payout[0];
+            }
+        });
+
+        const totalEarnings = (payoutsTotalData as any[] || []).reduce((sum, p) => sum + Number(p.amount), 0);
 
         setDeliveries(deliveredOrders as Delivery[]);
         setStats({
@@ -159,29 +175,34 @@ export function RiderEarnings() {
             </div>
           ) : (
             <div className="divide-y divide-gray-50">
-              {deliveries.map((delivery) => (
-                <div key={delivery.id} className="p-8 flex items-center justify-between hover:bg-gray-50/50 transition-colors group">
-                  <div className="flex items-center gap-6">
-                    <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center border border-gray-100 group-hover:rotate-3 transition-transform">
-                       <Banknote className="w-8 h-8 text-green-500" />
+              {deliveries.map((delivery) => {
+                // Note: In an ideal world we'd join payouts into the orders query
+                // but for now we'll match by order_id if available or just show the recorded amount
+                // Since our payouts table uses order_id, we should utilize it.
+                return (
+                  <div key={delivery.id} className="p-8 flex items-center justify-between hover:bg-gray-50/50 transition-colors group">
+                    <div className="flex items-center gap-6">
+                      <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center border border-gray-100 group-hover:rotate-3 transition-transform">
+                         <Banknote className="w-8 h-8 text-green-500" />
+                      </div>
+                      <div>
+                        <h3 className="font-black text-gray-900 uppercase tracking-tight leading-none mb-1">{(delivery as any).vendors?.restaurant_name || 'Restaurant'}</h3>
+                        <p className="text-xs font-bold text-gray-500">
+                          {new Date(delivery.created_at).toLocaleDateString()} at {new Date(delivery.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-black text-gray-900 uppercase tracking-tight leading-none mb-1">{(delivery as any).vendors?.restaurant_name || 'Restaurant'}</h3>
-                      <p className="text-xs font-bold text-gray-500">
-                        {new Date(delivery.created_at).toLocaleDateString()} at {new Date(delivery.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    <div className="text-right">
+                      <p className="font-black text-xl text-green-600 tracking-tighter">
+                        +{getSetting('currency_symbol', '₦')}{(delivery as any).payout?.amount?.toFixed(2) || (Number(delivery.total_price) * 0.1).toFixed(2)}
+                      </p>
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mt-1">
+                        { (delivery as any).payout ? 'Verified Payout' : 'Estimated (10%)' }
                       </p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-black text-xl text-green-600 tracking-tighter">
-                      +{getSetting('currency_symbol', '₦')}{((delivery as any).total_price * 0.1).toFixed(2)}
-                    </p>
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mt-1">
-                      10% commission
-                    </p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { 
   Settings, Save, Mail, CheckCircle, AlertCircle, 
   ArrowLeft, Percent, Wallet, Clock, Shield, 
-  Phone, MessageCircle, Power, DollarSign
+  Phone, MessageCircle, Power, DollarSign, CreditCard
 } from 'lucide-react';
 
 interface GlobalSetting {
@@ -89,6 +89,12 @@ export function AdminSettings() {
       name: 'Support & Help', 
       icon: Shield, 
       keys: ['support_email', 'support_phone', 'support_whatsapp'] 
+    },
+    { 
+      id: 'payments', 
+      name: 'Payment Gateway', 
+      icon: CreditCard, 
+      keys: ['paystack_enabled', 'paystack_public_key', 'paystack_secret_key'] 
     }
   ];
 
@@ -98,7 +104,7 @@ export function AdminSettings() {
     if (key.includes('whatsapp')) return MessageCircle;
     if (key.includes('percentage')) return Percent;
     if (key.includes('fee') || key.includes('value')) return DollarSign;
-    if (key.includes('mode')) return Power;
+    if (key.includes('mode') || key.includes('enabled')) return Power;
     return Settings;
   };
 

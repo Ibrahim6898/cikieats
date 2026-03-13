@@ -13,7 +13,11 @@ interface Review {
   };
   vendors: {
     restaurant_name: string;
-  };
+  } | null;
+  riders: {
+    profiles: { name: string };
+  } | null;
+  rider_id: string | null;
 }
 
 export function AdminReviews() {
@@ -33,7 +37,8 @@ export function AdminReviews() {
         .select(`
           *,
           profiles!reviews_customer_id_fkey(name),
-          vendors(restaurant_name)
+          vendors(restaurant_name),
+          riders(id, profiles(name))
         `)
         .order('created_at', { ascending: false });
 
@@ -115,10 +120,17 @@ export function AdminReviews() {
               <div key={review.id} className="bg-white rounded-xl shadow-sm p-6">
                 <div className="flex items-start justify-between mb-4">
                   <div>
-                    <h3 className="font-bold text-lg text-gray-900">
-                      {review.vendors.restaurant_name}
-                    </h3>
-                    <p className="text-sm text-gray-600">by {review.profiles.name}</p>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest ${
+                        review.rider_id ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'
+                      }`}>
+                        {review.rider_id ? 'Delivery' : 'Food'}
+                      </span>
+                      <h3 className="font-bold text-lg text-gray-900">
+                        {review.rider_id ? review.riders?.profiles.name : review.vendors?.restaurant_name}
+                      </h3>
+                    </div>
+                    <p className="text-sm text-gray-600 ml-1">by {review.profiles.name}</p>
                   </div>
                   <button
                     onClick={() => deleteReview(review.id)}

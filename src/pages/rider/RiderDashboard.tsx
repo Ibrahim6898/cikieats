@@ -3,13 +3,21 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { supabase } from '../../lib/supabase';
-import { AlertCircle, Bike, ShoppingBag, Wallet, Banknote, ToggleLeft, ToggleRight, PauseCircle, Mail, XCircle, TrendingUp, MessageCircle, Phone } from 'lucide-react';
+import { AlertCircle, Bike, ShoppingBag, Wallet, ToggleLeft, ToggleRight, PauseCircle, Mail, XCircle, TrendingUp, MessageCircle, Phone, Star } from 'lucide-react';
 
 interface Rider {
   id: string;
   status: string;
   is_online: boolean;
   vehicle_type: string;
+}
+
+interface Review {
+  id: string;
+  rating: number;
+  comment: string | null;
+  created_at: string;
+  profiles: { name: string };
 }
 
 export function RiderDashboard() {
@@ -19,6 +27,8 @@ export function RiderDashboard() {
   const [rider, setRider] = useState<Rider | null>(null);
   const [loading, setLoading] = useState(true);
   const [availableDeliveriesCount, setAvailableDeliveriesCount] = useState<number>(0);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [avgRating, setAvgRating] = useState(0);
   const [formData, setFormData] = useState({
     vehicle_type: 'bicycle' as const,
     phone_number: '',
@@ -43,6 +53,7 @@ export function RiderDashboard() {
       setRider(data as any);
       if ((data as any)?.status === 'approved') {
         fetchAvailableDeliveries();
+        fetchRiderStats(data.id);
       }
     } catch (error) {
       console.error('Error fetching rider:', error);
@@ -55,8 +66,31 @@ export function RiderDashboard() {
     const { count } = await supabase
       .from('orders')
       .select('*', { count: 'exact', head: true })
-      .eq('status', 'ready');
+      .eq('status', 'ready')
+      .is('rider_id', null);
     setAvailableDeliveriesCount(count || 0);
+  };
+
+  const fetchRiderStats = async (riderId: string) => {
+    try {
+      const { data: reviewsData, error } = await supabase
+        .from('reviews')
+        .select('id, rating, comment, created_at, profiles(name)')
+        .eq('rider_id', riderId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      
+      const riderReviews = (reviewsData || []) as Review[];
+      setReviews(riderReviews.slice(0, 5));
+      
+      if (riderReviews.length > 0) {
+        const total = riderReviews.reduce((sum, r) => sum + r.rating, 0);
+        setAvgRating(total / riderReviews.length);
+      }
+    } catch (err) {
+      console.error('Error fetching rider stats:', err);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -335,11 +369,15 @@ export function RiderDashboard() {
           <div className="glass-card rounded-[32px] p-8 premium-shadow border border-white/50">
              <div className="flex items-center justify-between mb-8">
               <div className="p-4 bg-purple-50 rounded-2xl text-purple-600 group-hover:rotate-6 transition-transform">
-                <Banknote className="w-8 h-8" />
+                <Star className="w-8 h-8" />
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Rating</p>
+                <p className="text-2xl font-black text-purple-600">{avgRating.toFixed(1)}</p>
               </div>
             </div>
-            <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight leading-none mb-2">Direct</h3>
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Instant Payouts</p>
+            <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight leading-none mb-2">Feedback</h3>
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">{reviews.length} Reviews</p>
           </div>
         </div>
 
@@ -358,6 +396,40 @@ export function RiderDashboard() {
             </button>
           </div>
         </div>
+
+        {/* Recent Feedback Section */}
+        {reviews.length > 0 && (
+          <div className="mt-12">
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="text-3xl font-black text-gray-900 tracking-tighter uppercase leading-none Italics italic">Customer Feedback</h2>
+              <div className="flex items-center gap-2">
+                <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
+                <span className="text-xl font-black text-gray-900">{avgRating.toFixed(1)}</span>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {reviews.map((review) => (
+                <div key={review.id} className="glass-card rounded-3xl p-6 border border-white/50 premium-shadow">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-xs font-black text-gray-900 uppercase tracking-widest">{review.profiles.name}</span>
+                    <div className="flex gap-0.5">
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <Star key={s} className={`w-3 h-3 ${s <= review.rating ? 'text-yellow-500 fill-yellow-500' : 'text-gray-200'}`} />
+                      ))}
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-500 font-bold italic leading-relaxed">
+                    "{review.comment || 'Safe and quick delivery!'}"
+                  </p>
+                  <div className="mt-4 pt-4 border-t border-gray-50 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                    {new Date(review.created_at).toLocaleDateString()}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

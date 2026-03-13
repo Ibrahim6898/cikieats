@@ -11,10 +11,17 @@ interface Order {
   delivery_address: string;
   total_price: number;
   created_at: string;
+  payment_method: string;
+  payment_status: string;
+  paystack_ref: string | null;
   vendors: {
     id: string;
     restaurant_name: string;
   };
+  riders: {
+    id: string;
+    profiles: { name: string };
+  } | null;
   order_items: {
     quantity: number;
     menu_items: {
@@ -25,6 +32,8 @@ interface Order {
     id: string;
     rating: number;
     comment: string | null;
+    vendor_id: string | null;
+    rider_id: string | null;
   }[];
 }
 
@@ -52,6 +61,8 @@ export function OrderDetail() {
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
+  const [riderRating, setRiderRating] = useState(5);
+  const [riderComment, setRiderComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -68,11 +79,12 @@ export function OrderDetail() {
         .select(`
           *,
           vendors(id, restaurant_name),
+          riders(id, profiles(name)),
           order_items(
             quantity,
             menu_items(name)
           ),
-          reviews(id, rating, comment)
+          reviews(id, rating, comment, vendor_id, rider_id)
         `)
         .eq('id', id)
         .eq('customer_id', user.id)
@@ -94,19 +106,42 @@ export function OrderDetail() {
 
     setSubmitting(true);
     try {
-      const { error } = await (supabase.from('reviews') as any).insert({
-        order_id: order.id,
-        customer_id: user.id,
-        vendor_id: order.vendors.id,
-        rating,
-        comment: comment || null,
-      });
+      const reviewPromises = [];
 
-      if (error) throw error;
+      // Food/Vendor Review
+      reviewPromises.push(
+        (supabase.from('reviews') as any).insert({
+          order_id: order.id,
+          customer_id: user.id,
+          vendor_id: order.vendors.id,
+          rating,
+          comment: comment || null,
+        })
+      );
+
+      // Rider Review (if rider was assigned)
+      if (order.riders) {
+        reviewPromises.push(
+          (supabase.from('reviews') as any).insert({
+            order_id: order.id,
+            customer_id: user.id,
+            rider_id: order.riders.id,
+            rating: riderRating,
+            comment: riderComment || null,
+          })
+        );
+      }
+
+      const results = await Promise.all(reviewPromises);
+      const errors = results.filter(r => r.error);
+      if (errors.length > 0) throw errors[0].error;
+
       await fetchOrder();
       setShowReviewForm(false);
       setComment('');
       setRating(5);
+      setRiderComment('');
+      setRiderRating(5);
     } catch (error) {
       console.error('Error submitting review:', error);
       alert('Failed to submit review. Please try again.');
@@ -143,7 +178,6 @@ export function OrderDetail() {
   }
 
   const hasReview = order.reviews && order.reviews.length > 0;
-  const review = hasReview ? order.reviews[0] : null;
   const isActive = !['delivered', 'cancelled'].includes(order.status);
 
   return (
@@ -232,6 +266,31 @@ export function OrderDetail() {
               </div>
             )}
 
+            <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-xl shadow-black/5 flex flex-col sm:flex-row justify-between gap-8 mb-10 overflow-hidden relative">
+              <div className="absolute top-0 left-0 w-1.5 h-full bg-green-500" />
+              <div className="flex-1">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Financial Status</p>
+                <div className="flex flex-wrap gap-4">
+                  <div className="px-4 py-2 bg-gray-50 rounded-2xl border border-gray-100 flex items-center gap-3">
+                    <span className="text-[10px] font-black text-gray-400 uppercase">Method:</span>
+                    <span className="text-xs font-black text-gray-900 uppercase tracking-tight">{order.payment_method}</span>
+                  </div>
+                  <div className={`px-4 py-2 rounded-2xl border flex items-center gap-3 ${
+                    order.payment_status === 'paid' ? 'bg-green-50 border-green-100 text-green-700' : 'bg-yellow-50 border-yellow-100 text-yellow-700'
+                  }`}>
+                    <span className="text-[10px] font-black uppercase">Status:</span>
+                    <span className="text-xs font-black uppercase tracking-tight">{order.payment_status}</span>
+                  </div>
+                </div>
+              </div>
+              {order.paystack_ref && (
+                <div className="text-right sm:border-l border-gray-100 sm:pl-8">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Ref ID</p>
+                  <p className="text-xs font-bold text-gray-900 font-mono tracking-tighter">{order.paystack_ref}</p>
+                </div>
+              )}
+            </div>
+
             <div className="grid sm:grid-cols-2 gap-10">
               <div className="bg-gray-50/50 p-8 rounded-[2rem] border border-gray-100">
                 <div className="flex items-center gap-3 mb-6">
@@ -274,34 +333,66 @@ export function OrderDetail() {
             <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-50 rounded-full -translate-y-1/2 translate-x-1/2 opacity-50" />
             <div className="relative">
               {hasReview ? (
-                <div>
-                  <div className="flex items-center justify-between mb-8">
-                    <h2 className="text-2xl font-black text-gray-900 tracking-tight uppercase">Your Feedback</h2>
-                    <span className="px-4 py-1 bg-yellow-400 text-white rounded-xl font-black text-xs">REVIEWED</span>
-                  </div>
-                  <div className="flex items-center gap-2 mb-6">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className={`w-7 h-7 transition-all ${
-                          i < review!.rating
-                            ? 'fill-yellow-400 text-yellow-400 drop-shadow-lg'
-                            : 'text-gray-200'
-                        }`}
-                      />
-                    ))}
-                    <span className="ml-3 font-black text-xl text-gray-900">{review!.rating}.0</span>
-                  </div>
-                  {review!.comment && (
-                    <div className="bg-gray-50 p-6 rounded-2xl italic text-gray-600 font-medium leading-relaxed relative">
-                       <span className="absolute -top-4 left-4 text-6xl text-gray-100 font-serif leading-none">“</span>
-                       {review!.comment}
+                <div className="space-y-10">
+                  <h2 className="text-2xl font-black text-gray-900 tracking-tight uppercase">Your Feedback</h2>
+                  
+                  {/* Food Review Display */}
+                  {order.reviews.find(r => r.vendor_id) && (
+                    <div>
+                      <div className="flex items-center justify-between mb-4">
+                        <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Food & Restaurant</p>
+                        <span className="px-3 py-1 bg-yellow-400 text-white rounded-lg font-black text-[10px]">REVIEWED</span>
+                      </div>
+                      <div className="flex items-center gap-2 mb-4">
+                        {[...Array(5)].map((_, i) => (
+                          <Star
+                            key={i}
+                            className={`w-5 h-5 ${
+                              i < order.reviews.find(r => r.vendor_id)!.rating
+                                ? 'fill-yellow-400 text-yellow-400'
+                                : 'text-gray-200'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      {order.reviews.find(r => r.vendor_id)!.comment && (
+                        <p className="text-sm text-gray-600 italic bg-gray-50 p-4 rounded-xl border border-gray-100">
+                          "{order.reviews.find(r => r.vendor_id)!.comment}"
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Delivery Review Display */}
+                  {order.reviews.find(r => r.rider_id) && (
+                    <div className="pt-6 border-t border-gray-100">
+                      <div className="flex items-center justify-between mb-4">
+                        <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Delivery & Rider</p>
+                        <span className="px-3 py-1 bg-blue-400 text-white rounded-lg font-black text-[10px]">REVIEWED</span>
+                      </div>
+                      <div className="flex items-center gap-2 mb-4">
+                        {[...Array(5)].map((_, i) => (
+                          <Star
+                            key={i}
+                            className={`w-5 h-5 ${
+                              i < order.reviews.find(r => r.rider_id)!.rating
+                                ? 'fill-blue-400 text-blue-400'
+                                : 'text-gray-200'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      {order.reviews.find(r => r.rider_id)!.comment && (
+                        <p className="text-sm text-gray-600 italic bg-gray-50 p-4 rounded-xl border border-gray-100">
+                          "{order.reviews.find(r => r.rider_id)!.comment}"
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
               ) : (
                 <div>
-                  <h2 className="text-3xl font-black text-gray-900 mb-6 tracking-tight uppercase">How was the food?</h2>
+                  <h2 className="text-3xl font-black text-gray-900 mb-6 tracking-tight uppercase">How was your experience?</h2>
                   {!showReviewForm ? (
                     <button
                       onClick={() => setShowReviewForm(true)}
@@ -311,43 +402,50 @@ export function OrderDetail() {
                       Rate your experience
                     </button>
                   ) : (
-                    <form onSubmit={handleSubmitReview} className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
-                      <div>
-                        <label className="block text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-4">
-                          Your Rating
+                    <form onSubmit={handleSubmitReview} className="space-y-10 animate-in fade-in slide-in-from-bottom-4">
+                      {/* Vendor Rating */}
+                      <div className="space-y-4">
+                        <label className="block text-xs font-black text-gray-400 uppercase tracking-[0.2em]">
+                          Rate the Food & Restaurant
                         </label>
-                        <div className="flex gap-4">
+                        <div className="flex gap-3">
                           {[1, 2, 3, 4, 5].map((value) => (
-                            <button
-                              key={value}
-                              type="button"
-                              onClick={() => setRating(value)}
-                              className="focus:outline-none hover-scale active:scale-90"
-                            >
-                              <Star
-                                className={`w-12 h-12 cursor-pointer transition-all ${
-                                  value <= rating
-                                    ? 'fill-yellow-400 text-yellow-400 drop-shadow-xl'
-                                    : 'text-gray-100'
-                                }`}
-                              />
+                            <button key={value} type="button" onClick={() => setRating(value)} className="focus:outline-none hover-scale">
+                              <Star className={`w-10 h-10 transition-all ${value <= rating ? 'fill-yellow-400 text-yellow-400 drop-shadow-lg' : 'text-gray-200'}`} />
                             </button>
                           ))}
                         </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-4">
-                          Care to share details? (Optional)
-                        </label>
                         <textarea
                           value={comment}
                           onChange={(e) => setComment(e.target.value)}
-                          rows={4}
-                          className="w-full px-6 py-5 bg-gray-50 border-2 border-transparent focus:border-green-500 rounded-[2rem] focus:ring-4 focus:ring-green-500/5 transition-all text-gray-900 placeholder-gray-300 font-bold outline-none"
-                          placeholder="Tell us what you loved about it..."
+                          rows={2}
+                          className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:border-green-500 rounded-2xl transition-all text-sm font-bold outline-none"
+                          placeholder="How was the food? (Optional)"
                         />
                       </div>
+
+                      {/* Rider Rating */}
+                      {order.riders && (
+                        <div className="space-y-4 pt-6 border-t border-gray-50">
+                          <label className="block text-xs font-black text-gray-400 uppercase tracking-[0.2em]">
+                            Rate the Delivery Rider ({order.riders.profiles.name})
+                          </label>
+                          <div className="flex gap-3">
+                            {[1, 2, 3, 4, 5].map((value) => (
+                              <button key={value} type="button" onClick={() => setRiderRating(value)} className="focus:outline-none hover-scale">
+                                <Star className={`w-10 h-10 transition-all ${value <= riderRating ? 'fill-blue-400 text-blue-400 drop-shadow-lg' : 'text-gray-200'}`} />
+                              </button>
+                            ))}
+                          </div>
+                          <textarea
+                            value={riderComment}
+                            onChange={(e) => setRiderComment(e.target.value)}
+                            rows={2}
+                            className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:border-blue-500 rounded-2xl transition-all text-sm font-bold outline-none"
+                            placeholder="How was the delivery? (Optional)"
+                          />
+                        </div>
+                      )}
 
                       <div className="flex flex-col sm:flex-row gap-4">
                         <button

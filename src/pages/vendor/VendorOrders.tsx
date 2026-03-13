@@ -55,7 +55,8 @@ export function VendorOrders() {
             order_items(
               quantity,
               menu_items(name)
-            )
+            ),
+            payout:payouts(amount)
           `)
           .eq('vendor_id', vendorData.id)
           .order('created_at', { ascending: false });
@@ -208,9 +209,13 @@ export function VendorOrders() {
                 </div>
 
                 <div className="flex items-center justify-between pt-4 border-t">
-                  <p className="text-xl font-bold text-green-600">
-                    {getSetting('currency_symbol', '₦')}{order.total_price.toFixed(2)}
-                  </p>
+                  <div className="flex flex-col items-end">
+                    <p className="text-xl font-black text-gray-900">
+                      {getSetting('currency_symbol', '₦')}{((order as any).payout?.[0]?.amount || order.total_price * 0.9).toFixed(2)}
+                    </p>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Net Share</p>
+                    <p className="text-[10px] font-bold text-gray-300 uppercase mt-1">Total: {getSetting('currency_symbol', '₦')}{order.total_price.toFixed(2)}</p>
+                  </div>
                   <div className="flex gap-2">
                     {getAvailableActions(order.status).map((action) => (
                       <button

@@ -26,7 +26,7 @@ interface Order {
 
 const deliverySteps = [
   { key: 'ready', label: 'Accepted' },
-  { key: 'picked_up', label: 'On the Way' },
+  { key: 'picked_up', label: 'Out for Delivery' },
   { key: 'delivered', label: 'Delivered' },
 ];
 
@@ -94,13 +94,19 @@ export function RiderOrders() {
           (supabase.from('orders') as any)
             .select(baseSelect)
             .eq('rider_id', riderData.id)
-            .in('status', ['picked_up', 'on_the_way'])
+            .in('status', ['ready', 'picked_up'])
             .order('created_at', { ascending: false }),
-          (supabase.from('orders') as any)
-            .select(baseSelect)
-            .eq('rider_id', riderData.id)
-            .eq('status', 'delivered')
-            .order('created_at', { ascending: false }),
+        (supabase.from('orders') as any)
+          .select(`
+            *,
+            riders(is_online),
+            vendors(restaurant_name),
+            profiles!orders_customer_id_fkey(name),
+            payout:payouts(amount)
+          `)
+          .eq('rider_id', riderData.id)
+          .eq('status', 'delivered')
+          .order('created_at', { ascending: false }),
         ]);
 
       const combined = [...(myActiveData || []), ...(availableData || [])];
@@ -336,10 +342,17 @@ export function RiderOrders() {
         </div>
       </div>
       <div className="text-right">
-        <p className="font-black text-xl text-green-600 tracking-tighter">+{getSetting('currency_symbol', '₦')}{(order.total_price * 0.1).toFixed(2)}</p>
-        <div className="flex items-center gap-1 justify-end mt-1">
-           <CheckCircle className="w-3 h-3 text-green-500" />
-           <span className="text-[10px] font-black uppercase tracking-widest text-green-600">DELIVERED</span>
+        <p className="font-black text-xl text-green-600 tracking-tighter">
+          +{getSetting('currency_symbol', '₦')}{(order as any).payout?.[0]?.amount?.toFixed(2) || (order.total_price * 0.1).toFixed(2)}
+        </p>
+        <div className="flex flex-col items-end gap-1 mt-1">
+           <div className="flex items-center gap-1">
+             <CheckCircle className="w-3 h-3 text-green-500" />
+             <span className="text-[10px] font-black uppercase tracking-widest text-green-600">DELIVERED</span>
+           </div>
+           <p className="text-[8px] font-black uppercase tracking-widest text-gray-400">
+             {(order as any).payout?.[0]?.amount ? 'Verified Payout' : 'Estimated Share'}
+           </p>
         </div>
       </div>
     </div>

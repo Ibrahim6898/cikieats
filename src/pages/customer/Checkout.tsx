@@ -4,7 +4,9 @@ import { useCart } from '../../contexts/CartContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { supabase } from '../../lib/supabase';
-import { ArrowLeft, MapPin, Phone, CreditCard, Banknote, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, MapPin, Phone, CreditCard, Banknote, ShieldCheck, Loader2 } from 'lucide-react';
+
+declare const PaystackPop: any;
 
 export function Checkout() {
   const navigate = useNavigate();
@@ -59,16 +61,53 @@ export function Checkout() {
 
     setLoading(true);
     try {
+      if (formData.paymentMethod === 'card') {
+        const paystackKey = getSetting('paystack_public_key');
+        if (!paystackKey || paystackKey.includes('pk_test_xxxx')) {
+          alert('Payment gateway is not fully configured. Please contact support or use Cash on Delivery.');
+          setLoading(false);
+          return;
+        }
+
+        const handler = PaystackPop.setup({
+          key: paystackKey,
+          email: user.email,
+          amount: Math.round((totalPrice + deliveryFee) * 100), // Paystack expects amount in Kobo
+          currency: 'NGN',
+          ref: `CIK-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          callback: async (response: any) => {
+            await finalizeOrder(response.reference);
+          },
+          onClose: () => {
+             setLoading(false);
+          }
+        });
+        handler.openIframe();
+      } else {
+        await finalizeOrder();
+      }
+    } catch (error) {
+      console.error('Error in checkout process:', error);
+      alert('Failed to process checkout. Please try again.');
+      setLoading(false);
+    }
+  };
+
+  const finalizeOrder = async (paystackRef?: string) => {
+    try {
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .insert({
-          customer_id: user.id,
+          customer_id: user!.id,
           vendor_id: vendorId,
           delivery_address: formData.address,
           phone: formData.phone,
           payment_method: formData.paymentMethod,
           total_price: totalPrice + deliveryFee,
+          delivery_fee: deliveryFee,
           status: 'pending',
+          payment_status: formData.paymentMethod === 'card' ? 'paid' : 'pending',
+          paystack_ref: paystackRef || null
         } as any)
         .select()
         .single();
@@ -167,36 +206,44 @@ export function Checkout() {
                 <label className="block text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-4">
                   Payment Preference
                 </label>
-                <div className="grid grid-cols-2 gap-4">
-                   <button
-                     type="button"
-                     onClick={() => setFormData({...formData, paymentMethod: 'cash'})}
-                     className={`p-6 rounded-[1.5rem] border-2 transition-all flex flex-col items-center gap-3 ${formData.paymentMethod === 'cash' ? 'border-green-500 bg-green-50/50' : 'border-gray-100 hover:border-gray-200'}`}
-                   >
-                     <div className={`p-3 rounded-xl ${formData.paymentMethod === 'cash' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
-                        <Banknote className="w-6 h-6" />
-                     </div>
-                     <span className={`font-black uppercase tracking-widest text-[10px] ${formData.paymentMethod === 'cash' ? 'text-green-700' : 'text-gray-400'}`}>Cash on Delivery</span>
-                   </button>
-                   <button
-                     type="button"
-                     onClick={() => setFormData({...formData, paymentMethod: 'card'})}
-                     className={`p-6 rounded-[1.5rem] border-2 transition-all flex flex-col items-center gap-3 ${formData.paymentMethod === 'card' ? 'border-green-500 bg-green-50/50' : 'border-gray-100 hover:border-gray-200'}`}
-                   >
-                     <div className={`p-3 rounded-xl ${formData.paymentMethod === 'card' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
-                        <CreditCard className="w-6 h-6" />
-                     </div>
-                     <span className={`font-black uppercase tracking-widest text-[10px] ${formData.paymentMethod === 'card' ? 'text-green-700' : 'text-gray-400'}`}>Credit Card</span>
-                   </button>
-                </div>
+                  <div className={`grid gap-4 ${getSetting('paystack_enabled') === 'true' ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                     <button
+                       type="button"
+                       onClick={() => setFormData({...formData, paymentMethod: 'cash'})}
+                       className={`p-6 rounded-[1.5rem] border-2 transition-all flex flex-col items-center gap-3 ${formData.paymentMethod === 'cash' ? 'border-green-500 bg-green-50/50' : 'border-gray-100 hover:border-gray-200'}`}
+                     >
+                       <div className={`p-3 rounded-xl ${formData.paymentMethod === 'cash' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                          <Banknote className="w-6 h-6" />
+                       </div>
+                       <span className={`font-black uppercase tracking-widest text-[10px] ${formData.paymentMethod === 'cash' ? 'text-green-700' : 'text-gray-400'}`}>Cash on Delivery</span>
+                     </button>
+                     
+                     {getSetting('paystack_enabled') === 'true' && (
+                       <button
+                         type="button"
+                         onClick={() => setFormData({...formData, paymentMethod: 'card'})}
+                         className={`p-6 rounded-[1.5rem] border-2 transition-all flex flex-col items-center gap-3 ${formData.paymentMethod === 'card' ? 'border-green-500 bg-green-50/50' : 'border-gray-100 hover:border-gray-200'}`}
+                       >
+                         <div className={`p-3 rounded-xl ${formData.paymentMethod === 'card' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                            <CreditCard className="w-6 h-6" />
+                         </div>
+                         <span className={`font-black uppercase tracking-widest text-[10px] ${formData.paymentMethod === 'card' ? 'text-green-700' : 'text-gray-400'}`}>Credit Card</span>
+                       </button>
+                     )}
+                  </div>
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-green-600 text-white py-6 rounded-[1.5rem] hover:bg-green-700 transition-all font-black uppercase tracking-[0.2em] shadow-xl shadow-green-100 hover-scale active:scale-95 disabled:opacity-50"
+                className="w-full bg-green-600 text-white py-6 rounded-[1.5rem] hover:bg-green-700 transition-all font-black uppercase tracking-[0.2em] shadow-xl shadow-green-100 hover-scale active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3"
               >
-                {loading ? 'Processing Order...' : 'Confirm and Order Now'}
+                {loading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Processing...
+                  </>
+                ) : 'Confirm and Order Now'}
               </button>
             </form>
           </div>

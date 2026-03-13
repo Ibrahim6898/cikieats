@@ -2,16 +2,18 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSettings } from '../../contexts/SettingsContext';
 import { supabase } from '../../lib/supabase';
-import { Users, Store, Bike, ShoppingBag, TrendingUp, AlertCircle, Settings } from 'lucide-react';
+import { Users, Store, Bike, ShoppingBag, TrendingUp, AlertCircle, Settings, Banknote, Star } from 'lucide-react';
 
 interface Stats {
   totalOrders: number;
   totalRevenue: number;
+  platformRevenue: number;
   activeVendors: number;
   activeRiders: number;
   pendingVendors: number;
   pendingRiders: number;
   totalUsers: number;
+  totalReviews: number;
 }
 
 export function AdminDashboard() {
@@ -20,11 +22,13 @@ export function AdminDashboard() {
   const [stats, setStats] = useState<Stats>({
     totalOrders: 0,
     totalRevenue: 0,
+    platformRevenue: 0,
     activeVendors: 0,
     activeRiders: 0,
     pendingVendors: 0,
     pendingRiders: 0,
     totalUsers: 0,
+    totalReviews: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -34,11 +38,13 @@ export function AdminDashboard() {
 
   const fetchStats = async () => {
     try {
-      const [ordersRes, vendorsRes, ridersRes, usersRes] = await Promise.all([
+      const [ordersRes, vendorsRes, ridersRes, usersRes, payoutsRes, reviewsRes] = await Promise.all([
         supabase.from('orders').select('id, total_price'),
         supabase.from('vendors').select('id, status'),
         supabase.from('riders').select('id, status'),
         supabase.from('profiles').select('id', { count: 'exact', head: true }),
+        supabase.from('payouts').select('amount').eq('role', 'platform'),
+        supabase.from('reviews').select('id', { count: 'exact', head: true }),
       ]);
 
       const orders = (ordersRes.data || []) as { id: string; total_price: number | null }[];
@@ -48,11 +54,13 @@ export function AdminDashboard() {
       setStats({
         totalOrders: orders.length,
         totalRevenue: orders.reduce((sum, order) => sum + (order.total_price || 0), 0),
+        platformRevenue: (payoutsRes.data as any[] || []).reduce((sum, p) => sum + Number(p.amount), 0),
         activeVendors: vendors.filter((v) => v.status === 'approved').length,
         activeRiders: riders.filter((r) => r.status === 'approved').length,
         pendingVendors: vendors.filter((v) => v.status === 'pending').length,
         pendingRiders: riders.filter((r) => r.status === 'pending').length,
         totalUsers: usersRes.count || 0,
+        totalReviews: (reviewsRes as any).count || 0,
       });
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -85,11 +93,18 @@ export function AdminDashboard() {
       onClick: () => navigate('/admin/users'),
     },
     {
-      label: 'Total Revenue',
+      label: 'Gross Volume',
       value: `${getSetting('currency_symbol', '₦')}${stats.totalRevenue.toFixed(2)}`,
       icon: TrendingUp,
-      color: 'green',
+      color: 'blue',
       onClick: () => navigate('/admin/orders'),
+    },
+    {
+      label: 'Platform Profit',
+      value: `${getSetting('currency_symbol', '₦')}${stats.platformRevenue.toFixed(2)}`,
+      icon: Banknote,
+      color: 'green',
+      onClick: () => navigate('/admin/settings'),
     },
     {
       label: 'Active Vendors',
@@ -118,6 +133,13 @@ export function AdminDashboard() {
       icon: AlertCircle,
       color: 'red',
       onClick: () => navigate('/admin/riders'),
+    },
+    {
+      label: 'Total Reviews',
+      value: stats.totalReviews,
+      icon: Star,
+      color: 'purple',
+      onClick: () => navigate('/admin/reviews'),
     },
   ];
 
@@ -234,6 +256,17 @@ export function AdminDashboard() {
             </div>
             <h3 className="text-2xl font-black text-gray-900 tracking-tight mb-2">Users</h3>
             <p className="text-xs font-bold text-gray-400 leading-relaxed uppercase tracking-widest">Base Accounts Management</p>
+          </button>
+
+          <button
+            onClick={() => navigate('/admin/reviews')}
+            className="glass-card rounded-[40px] p-10 premium-shadow hover-scale text-left border border-white/50"
+          >
+            <div className="w-16 h-16 bg-yellow-50 rounded-2xl flex items-center justify-center mb-8 border border-yellow-100">
+               <Star className="w-8 h-8 text-yellow-500" />
+            </div>
+            <h3 className="text-2xl font-black text-gray-900 tracking-tight mb-2">Reviews</h3>
+            <p className="text-xs font-bold text-gray-400 leading-relaxed uppercase tracking-widest">Customer Feedback & Moderation</p>
           </button>
         </div>
       </div>
