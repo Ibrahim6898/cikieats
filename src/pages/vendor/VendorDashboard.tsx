@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSettings } from '../../contexts/SettingsContext';
 import { supabase } from '../../lib/supabase';
 import {
   Store, Menu, ShoppingBag, AlertCircle,
   ImagePlus, X, Pencil, PauseCircle,
-  TrendingUp, Banknote, Clock, CheckCircle, ChevronDown, ChevronUp, Mail
+  TrendingUp, Banknote, Clock, CheckCircle, ChevronDown, ChevronUp, Mail, Phone, MessageCircle
 } from 'lucide-react';
 
 interface Vendor {
@@ -46,11 +47,11 @@ interface VendorStats {
 export function VendorDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { getSetting } = useSettings();
   const [vendor, setVendor] = useState<Vendor | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [supportEmail, setSupportEmail] = useState('support@cikieats.com');
 
   // Registration form (used when vendor is null)
   const [formData, setFormData] = useState({
@@ -90,7 +91,6 @@ export function VendorDashboard() {
   useEffect(() => {
     if (user) {
       fetchVendor();
-      fetchSupportEmail();
       const channel = subscribeToOrders();
       return () => {
         if (channel) supabase.removeChannel(channel);
@@ -124,22 +124,6 @@ export function VendorDashboard() {
       console.error('Error fetching vendor:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchSupportEmail = async () => {
-    try {
-      const { data } = await (supabase
-        .from('global_settings') as any)
-        .select('value')
-        .eq('key', 'support_email')
-        .maybeSingle();
-
-      if ((data as any)?.value) {
-        setSupportEmail((data as any).value);
-      }
-    } catch (error) {
-      console.error('Error fetching support email:', error);
     }
   };
 
@@ -415,17 +399,28 @@ export function VendorDashboard() {
             Your restaurant account has been suspended by the administrator. 
             Customers cannot see your restaurant or place orders during suspension.
           </p>
-          <div className="space-y-4 pt-4 border-t border-gray-100">
+          <div className="space-y-4 pt-4 border-t border-gray-100 flex flex-col items-center">
             <p className="text-sm text-gray-500">
               Please contact support if you believe this is an error.
             </p>
-            <a
-              href={`mailto:${supportEmail}?subject=Vendor Suspension Inquiry: ${vendor.restaurant_name} (${vendor.id})`}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 text-white font-bold rounded-2xl hover:bg-green-700 transition-all shadow-lg shadow-green-100 active:scale-95"
-            >
-              <Mail className="w-5 h-5" />
-              Contact Support
-            </a>
+            <div className="flex flex-wrap justify-center gap-3">
+              <a
+                href={`mailto:${getSetting('support_email')}?subject=Vendor Suspension Inquiry: ${vendor.restaurant_name} (${vendor.id})`}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 text-white font-bold rounded-2xl hover:bg-green-700 transition-all shadow-lg shadow-green-100 active:scale-95"
+              >
+                <Mail className="w-5 h-5" />
+                Email
+              </a>
+              <a
+                href={`https://wa.me/${getSetting('support_whatsapp')}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-[#25D366] text-white font-bold rounded-2xl hover:bg-[#128C7E] transition-all shadow-lg shadow-green-100 active:scale-95"
+              >
+                <MessageCircle className="w-5 h-5" />
+                WhatsApp
+              </a>
+            </div>
           </div>
         </div>
       </div>
@@ -451,13 +446,22 @@ export function VendorDashboard() {
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Application Rejected</h2>
           <p className="text-gray-600 mb-6">Please contact support for more information.</p>
-          <a
-            href={`mailto:${supportEmail}?subject=Vendor Rejection Inquiry: ${vendor.restaurant_name}`}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gray-900 text-white font-bold rounded-2xl hover:bg-black transition-all shadow-lg shadow-gray-100 active:scale-95"
-          >
-            <Mail className="w-5 h-5" />
-            Contact Support
-          </a>
+          <div className="flex flex-col gap-3">
+            <a
+              href={`mailto:${getSetting('support_email')}?subject=Vendor Rejection Inquiry: ${vendor.restaurant_name}`}
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gray-900 text-white font-bold rounded-2xl hover:bg-black transition-all shadow-lg shadow-gray-100 active:scale-95"
+            >
+              <Mail className="w-5 h-5" />
+              Contact Email
+            </a>
+            <a
+              href={`tel:${getSetting('support_phone')}`}
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-white border border-gray-200 text-gray-900 font-bold rounded-2xl hover:bg-gray-50 transition-all active:scale-95"
+            >
+              <Phone className="w-5 h-5" />
+              Call Support
+            </a>
+          </div>
         </div>
       </div>
     );
@@ -512,10 +516,10 @@ export function VendorDashboard() {
                <div className="p-4 bg-green-50 rounded-2xl text-green-600">
                  <Banknote className="w-6 h-6" />
                </div>
-               <div>
-                 <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Today's Sales</p>
-                 <p className="text-2xl font-black text-gray-900">₦{stats.todayEarnings.toFixed(2)}</p>
-               </div>
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Today's Sales</p>
+                  <p className="text-2xl font-black text-gray-900">{getSetting('currency_symbol', '₦')}{stats.todayEarnings.toFixed(2)}</p>
+                </div>
              </div>
           </div>
 
@@ -592,9 +596,9 @@ export function VendorDashboard() {
                           ))}
                         </ul>
                       </div>
-                      <div className="mt-4 lg:mt-0 flex items-center gap-4">
+                       <div className="mt-4 lg:mt-0 flex items-center gap-4">
                         <div className="text-right">
-                          <p className="text-lg font-black text-gray-900">₦{order.total_price.toFixed(2)}</p>
+                          <p className="text-lg font-black text-gray-900">{getSetting('currency_symbol', '₦')}{order.total_price.toFixed(2)}</p>
                           <p className="text-[10px] text-gray-400 font-bold uppercase">{new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                         </div>
                         <div className="flex flex-col gap-2">
@@ -697,9 +701,9 @@ export function VendorDashboard() {
                           <dt className="text-gray-400">Cuisine</dt>
                           <dd className="font-bold text-gray-700">{vendor.cuisine}</dd>
                         </div>
-                        <div className="flex justify-between">
+                         <div className="flex justify-between">
                           <dt className="text-gray-400">Delivery Fee</dt>
-                          <dd className="font-bold text-gray-700">₦{Number(vendor.delivery_fee).toFixed(2)}</dd>
+                          <dd className="font-bold text-gray-700">{getSetting('currency_symbol', '₦')}{Number(vendor.delivery_fee).toFixed(2)}</dd>
                         </div>
                         <div className="pt-2">
                           <dt className="text-gray-400 mb-1">Address</dt>
@@ -747,15 +751,25 @@ export function VendorDashboard() {
                <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:rotate-12 transition-transform">
                   <AlertCircle className="w-24 h-24" />
                </div>
-               <h4 className="text-lg font-bold mb-1">Need help?</h4>
-               <p className="text-xs text-green-200 font-medium mb-4">Our support team is available 24/7</p>
-               <a
-                href={`mailto:${supportEmail}?subject=Vendor Support Request: ${vendor.restaurant_name}`}
-                className="bg-white text-green-900 px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-green-50 transition-colors inline-block"
-               >
-                  CONTACT SUPPORT
-               </a>
-            </div>
+                <h4 className="text-lg font-bold mb-1">Need help?</h4>
+                <p className="text-xs text-green-200 font-medium mb-4">Our support team is available 24/7</p>
+                <div className="flex flex-col gap-2">
+                 <a
+                  href={`mailto:${getSetting('support_email')}?subject=Vendor Support Request: ${vendor.restaurant_name}`}
+                  className="bg-white text-green-900 px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-green-50 transition-colors inline-block text-center"
+                 >
+                    EMAIL SUPPORT
+                 </a>
+                 <a
+                  href={`https://wa.me/${getSetting('support_whatsapp')}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="bg-green-500 text-white px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-green-400 transition-colors inline-block text-center"
+                 >
+                    WHATSAPP CHAT
+                 </a>
+                </div>
+             </div>
           </div>
         </div>
       </div>

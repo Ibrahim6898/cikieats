@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../../contexts/CartContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSettings } from '../../contexts/SettingsContext';
 import { supabase } from '../../lib/supabase';
 import { ArrowLeft, MapPin, Phone, CreditCard, Banknote, ShieldCheck } from 'lucide-react';
 
@@ -9,6 +10,7 @@ export function Checkout() {
   const navigate = useNavigate();
   const { items, totalPrice, clearCart, vendorId } = useCart();
   const { user } = useAuth();
+  const { getSetting } = useSettings();
   const [loading, setLoading] = useState(false);
   const [deliveryFee, setDeliveryFee] = useState(0);
   const [formData, setFormData] = useState({
@@ -47,6 +49,13 @@ export function Checkout() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !vendorId) return;
+    
+    const minOrder = parseFloat(getSetting('minimum_order_value', '0'));
+    if (totalPrice < minOrder) {
+      alert(`The minimum order value for the platform is ${getSetting('currency_symbol', '₦')}${minOrder}. Please add more items.`);
+      setLoading(false);
+      return;
+    }
 
     setLoading(true);
     try {
@@ -203,27 +212,27 @@ export function Checkout() {
                         <p className="font-bold text-gray-900 text-sm">{item.name}</p>
                         <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Qty: {item.quantity}</p>
                       </div>
-                      <span className="font-black text-gray-900 ml-4">₦{(item.price * item.quantity).toFixed(2)}</span>
-                    </div>
-                  ))}
+                    <span className="font-black text-gray-900 ml-4">{getSetting('currency_symbol', '₦')}{(item.price * item.quantity).toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="space-y-4 pt-6 border-t border-gray-100">
+                <div className="flex justify-between text-sm font-bold">
+                  <span className="text-gray-400 uppercase tracking-widest text-[10px]">Basket Total</span>
+                  <span className="text-gray-900">{getSetting('currency_symbol', '₦')}{totalPrice.toFixed(2)}</span>
                 </div>
-                
-                <div className="space-y-4 pt-6 border-t border-gray-100">
-                  <div className="flex justify-between text-sm font-bold">
-                    <span className="text-gray-400 uppercase tracking-widest text-[10px]">Basket Total</span>
-                    <span className="text-gray-900">₦{totalPrice.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm font-bold">
-                    <span className="text-gray-400 uppercase tracking-widest text-[10px]">Delivery Fee</span>
-                    <span className="text-gray-900">₦{deliveryFee.toFixed(2)}</span>
-                  </div>
-                  <div className="pt-6 border-t border-gray-100 flex justify-between items-end">
-                    <div>
-                       <p className="text-gray-400 uppercase tracking-widest text-[10px] font-black mb-1">Total to Pay</p>
-                       <p className="text-4xl font-black text-green-600 tracking-tighter leading-none">₦{grandTotal.toFixed(2)}</p>
-                    </div>
+                <div className="flex justify-between text-sm font-bold">
+                  <span className="text-gray-400 uppercase tracking-widest text-[10px]">Delivery Fee</span>
+                  <span className="text-gray-900">{getSetting('currency_symbol', '₦')}{deliveryFee.toFixed(2)}</span>
+                </div>
+                <div className="pt-6 border-t border-gray-100 flex justify-between items-end">
+                  <div>
+                     <p className="text-gray-400 uppercase tracking-widest text-[10px] font-black mb-1">Total to Pay</p>
+                     <p className="text-4xl font-black text-green-600 tracking-tighter leading-none">{getSetting('currency_symbol', '₦')}{grandTotal.toFixed(2)}</p>
                   </div>
                 </div>
+              </div>
               </div>
 
               <div className="mt-10 p-6 bg-green-50 rounded-2xl border border-green-100 flex items-center gap-4">

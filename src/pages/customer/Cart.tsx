@@ -1,10 +1,11 @@
-import { useNavigate } from 'react-router-dom';
 import { useCart } from '../../contexts/CartContext';
+import { useSettings } from '../../contexts/SettingsContext';
 import { ArrowLeft, Minus, Plus, Trash2, ShoppingBag, Utensils, Banknote } from 'lucide-react';
 
 export function Cart() {
   const navigate = useNavigate();
   const { items, removeItem, updateQuantity, totalPrice, clearCart } = useCart();
+  const { getSetting } = useSettings();
 
   if (items.length === 0) {
     return (
@@ -86,7 +87,7 @@ export function Cart() {
               <div className="flex-1">
                 <h3 className="font-black text-xl text-gray-900 mb-1 group-hover:text-green-600 transition-colors uppercase tracking-tight">{item.name}</h3>
                 <p className="text-green-600 font-black text-lg tracking-tighter">
-                  ₦{item.price.toFixed(2)}
+                  {getSetting('currency_symbol', '₦')}{item.price.toFixed(2)}
                 </p>
                 <div className="flex items-center gap-4 mt-6">
                   <div className="flex items-center gap-1 bg-gray-50 rounded-2xl p-1 border border-gray-100">
@@ -108,7 +109,7 @@ export function Cart() {
               </div>
               <div className="text-right flex flex-col items-end gap-2">
                 <p className="font-black text-2xl text-gray-900 tracking-tighter">
-                  ₦{(item.price * item.quantity).toFixed(2)}
+                  {getSetting('currency_symbol', '₦')}{(item.price * item.quantity).toFixed(2)}
                 </p>
                 <button
                   onClick={() => removeItem(item.menu_item_id)}
@@ -125,7 +126,7 @@ export function Cart() {
         <div className="glass-card rounded-[3rem] p-10 mt-10 border-white/60 premium-shadow">
           <div className="flex items-center justify-between text-3xl font-black mb-8">
             <span className="text-gray-400 uppercase tracking-widest text-sm">Grand Total</span>
-            <span className="text-green-600 tracking-tighter">₦{totalPrice.toFixed(2)}</span>
+            <span className="text-green-600 tracking-tighter">{getSetting('currency_symbol', '₦')}{totalPrice.toFixed(2)}</span>
           </div>
           <button
             onClick={() => navigate('/checkout')}

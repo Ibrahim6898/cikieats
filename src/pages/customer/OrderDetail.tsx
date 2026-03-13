@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSettings } from '../../contexts/SettingsContext';
 import { supabase } from '../../lib/supabase';
 import { ArrowLeft, Star, MapPin, Banknote, Utensils, CheckCircle, Clock } from 'lucide-react';
 
@@ -44,6 +45,7 @@ function getStatusProgress(status: string) {
 export function OrderDetail() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const { getSetting } = useSettings();
   const navigate = useNavigate();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
@@ -177,7 +179,7 @@ export function OrderDetail() {
               </div>
               <div className="text-left sm:text-right">
                 <p className="text-gray-400 text-xs font-black uppercase tracking-widest mb-1">Total Paid</p>
-                <p className="text-4xl font-black text-green-600 tracking-tighter">₦{order.total_price.toFixed(2)}</p>
+                <p className="text-4xl font-black text-green-600 tracking-tighter">{getSetting('currency_symbol', '₦')}{order.total_price.toFixed(2)}</p>
               </div>
             </div>
           </div>

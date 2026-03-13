@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSettings } from '../../contexts/SettingsContext';
 import { supabase } from '../../lib/supabase';
-import { AlertCircle, Bike, ShoppingBag, Wallet, Banknote, ToggleLeft, ToggleRight, PauseCircle, Mail, XCircle, TrendingUp } from 'lucide-react';
+import { AlertCircle, Bike, ShoppingBag, Wallet, Banknote, ToggleLeft, ToggleRight, PauseCircle, Mail, XCircle, TrendingUp, MessageCircle, Phone } from 'lucide-react';
 
 interface Rider {
   id: string;
@@ -14,9 +15,9 @@ interface Rider {
 export function RiderDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { getSetting } = useSettings();
   const [rider, setRider] = useState<Rider | null>(null);
   const [loading, setLoading] = useState(true);
-  const [supportEmail, setSupportEmail] = useState('support@cikieats.com');
   const [availableDeliveriesCount, setAvailableDeliveriesCount] = useState<number>(0);
   const [formData, setFormData] = useState({
     vehicle_type: 'bicycle' as const,
@@ -26,25 +27,8 @@ export function RiderDashboard() {
   useEffect(() => {
     if (user) {
       fetchRider();
-      fetchSupportEmail();
     }
   }, [user]);
-
-  const fetchSupportEmail = async () => {
-    try {
-      const { data } = await (supabase
-        .from('global_settings') as any)
-        .select('value')
-        .eq('key', 'support_email')
-        .maybeSingle();
-
-      if ((data as any)?.value) {
-        setSupportEmail((data as any).value);
-      }
-    } catch (error) {
-      console.error('Error fetching support email:', error);
-    }
-  };
 
   const fetchRider = async () => {
     if (!user) return;
@@ -186,17 +170,28 @@ export function RiderDashboard() {
             Your delivery account has been suspended by the administration. 
             You will not be able to receive new delivery requests during this time.
           </p>
-          <div className="pt-8 border-t border-gray-50">
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-6">
+          <div className="pt-8 border-t border-gray-50 flex flex-col items-center gap-4">
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
               Need assistance?
             </p>
-            <a
-              href={`mailto:${supportEmail}?subject=Rider Suspension Inquiry: ${user?.email || 'Rider'} (${rider.id})`}
-              className="inline-flex items-center gap-3 px-10 py-5 bg-green-600 text-white font-black rounded-[24px] hover:bg-green-700 transition-all shadow-xl shadow-green-100 active:scale-95 uppercase tracking-tight"
-            >
-              <Mail className="w-5 h-5" />
-              Contact Support
-            </a>
+            <div className="flex flex-wrap justify-center gap-3">
+              <a
+                href={`mailto:${getSetting('support_email')}?subject=Rider Suspension Inquiry: ${user?.email || 'Rider'} (${rider.id})`}
+                className="inline-flex items-center gap-3 px-8 py-4 bg-green-600 text-white font-black rounded-[24px] hover:bg-green-700 transition-all shadow-xl shadow-green-100 active:scale-95 uppercase text-xs"
+              >
+                <Mail className="w-5 h-5" />
+                Email Support
+              </a>
+              <a
+                href={`https://wa.me/${getSetting('support_whatsapp')}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-3 px-8 py-4 bg-[#25D366] text-white font-black rounded-[24px] hover:bg-[#128C7E] transition-all shadow-xl shadow-green-100 active:scale-95 uppercase text-xs"
+              >
+                <MessageCircle className="w-5 h-5" />
+                WhatsApp
+              </a>
+            </div>
           </div>
         </div>
       </div>
@@ -215,13 +210,20 @@ export function RiderDashboard() {
             Your application is currently being reviewed by our team. 
             We'll notify you via email once your account is activated.
           </p>
-          <div className="pt-8 border-t border-gray-50">
+          <div className="pt-8 border-t border-gray-50 flex flex-col items-center gap-3">
              <a
-              href={`mailto:${supportEmail}?subject=Rider Application Status: ${user?.email || 'Rider'}`}
-              className="inline-flex items-center gap-3 px-8 py-4 bg-gray-900 text-white font-black rounded-[20px] hover:bg-black transition-all shadow-xl shadow-gray-200 active:scale-95 uppercase text-xs tracking-widest"
+              href={`mailto:${getSetting('support_email')}?subject=Rider Application Status: ${user?.email || 'Rider'}`}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 bg-gray-900 text-white font-black rounded-[20px] hover:bg-black transition-all shadow-xl shadow-gray-200 active:scale-95 uppercase text-xs tracking-widest"
             >
               <Mail className="w-4 h-4" />
-              Check Status
+              Check Status via Email
+            </a>
+            <a
+              href={`tel:${getSetting('support_phone')}`}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 bg-white border border-gray-200 text-gray-900 font-black rounded-[20px] hover:bg-gray-50 transition-all active:scale-95 uppercase text-xs tracking-widest"
+            >
+              <Phone className="w-4 h-4" />
+              Call Registry
             </a>
           </div>
         </div>
@@ -242,7 +244,7 @@ export function RiderDashboard() {
           </p>
            <div className="pt-8 border-t border-gray-50">
              <a
-              href={`mailto:${supportEmail}?subject=Rider Rejection Inquiry: ${user?.email || 'Rider'}`}
+              href={`mailto:${getSetting('support_email')}?subject=Rider Rejection Inquiry: ${user?.email || 'Rider'}`}
               className="inline-flex items-center gap-3 px-8 py-4 bg-gray-900 text-white font-black rounded-[20px] hover:bg-black transition-all shadow-xl shadow-gray-200 active:scale-95 uppercase text-xs tracking-widest"
             >
               <Mail className="w-4 h-4" />

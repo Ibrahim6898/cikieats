@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { Search, MapPin, Banknote } from 'lucide-react';
+import { useSettings } from '../../contexts/SettingsContext';
+import { Search, MapPin, Banknote, Clock } from 'lucide-react';
 
 interface Vendor {
   id: string;
@@ -17,6 +18,7 @@ export function Home() {
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const { getSetting, isOperatingHours } = useSettings();
 
   useEffect(() => {
     fetchVendors();
@@ -102,6 +104,22 @@ export function Home() {
         </div>
       </div>
 
+      {!isOperatingHours() && (
+        <div className="max-w-7xl mx-auto px-4 mt-6">
+          <div className="bg-amber-50 border border-amber-100 p-6 rounded-[2rem] flex items-center gap-6 shadow-sm">
+            <div className="p-3 bg-amber-500 rounded-2xl text-white shadow-lg shadow-amber-200">
+               <Clock className="w-6 h-6" />
+            </div>
+            <div>
+               <h3 className="font-black text-gray-900 uppercase tracking-tighter italic">Platform Resting</h3>
+               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">
+                 We're currently closed. Operating hours are {getSetting('operating_hours_start')} - {getSetting('operating_hours_end')}.
+               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">Restaurants near you</h2>
 
@@ -158,7 +176,7 @@ export function Home() {
                     </div>
                     <div className="flex items-center gap-1.5 ml-auto text-gray-900">
                       <Banknote className="w-4 h-4 text-green-500" />
-                      <span>₦{vendor.delivery_fee}</span>
+                      <span>{getSetting('currency_symbol', '₦')}{vendor.delivery_fee}</span>
                     </div>
                   </div>
                 </div>

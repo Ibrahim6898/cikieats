@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useCart } from '../../contexts/CartContext';
-import { ArrowLeft, MapPin, Banknote, Plus, ShoppingCart, Utensils } from 'lucide-react';
+import { useSettings } from '../../contexts/SettingsContext';
+import { ArrowLeft, MapPin, Banknote, Plus, ShoppingCart, Utensils, Clock } from 'lucide-react';
 
 interface MenuItem {
   id: string;
@@ -30,6 +31,7 @@ export function Restaurant() {
   const [vendor, setVendor] = useState<Vendor | null>(null);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const { getSetting, isOperatingHours } = useSettings();
 
   useEffect(() => {
     if (id) {
@@ -161,11 +163,16 @@ export function Restaurant() {
                       </div>
                       <div className="flex items-center gap-2">
                         <Banknote className="w-4 h-4" />
-                        ₦{vendor.delivery_fee} Delivery
+                        {getSetting('currency_symbol', '₦')}{vendor.delivery_fee} Delivery
                       </div>
                     </div>
                   </div>
-                  {!vendor.is_open && (
+                  {!isOperatingHours() ? (
+                    <div className="bg-amber-500 text-white px-8 py-3 rounded-2xl font-black uppercase tracking-widest shadow-2xl ring-4 ring-white/20 flex items-center gap-2">
+                      <Clock className="w-5 h-5" />
+                      Platform Closed
+                    </div>
+                  ) : !vendor.is_open && (
                     <div className="bg-red-500 text-white px-8 py-3 rounded-2xl font-black uppercase tracking-widest shadow-2xl ring-4 ring-white/20">
                       Closed Now
                     </div>
@@ -215,11 +222,11 @@ export function Restaurant() {
                   )}
                   <div className="flex items-center justify-between">
                     <span className="text-2xl font-black text-green-600 tracking-tighter">
-                      ₦{item.price.toFixed(2)}
+                      {getSetting('currency_symbol', '₦')}{item.price.toFixed(2)}
                     </span>
                     <button
                       onClick={() => handleAddToCart(item)}
-                      disabled={!vendor.is_open}
+                      disabled={!vendor.is_open || !isOperatingHours()}
                       className="bg-green-600 text-white px-6 py-3 rounded-2xl hover:bg-green-700 transition-all font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg shadow-green-200 active:scale-90"
                     >
                       <Plus className="w-5 h-5" />

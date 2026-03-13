@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSettings } from '../../contexts/SettingsContext';
 import { supabase } from '../../lib/supabase';
 import { Users, Store, Bike, ShoppingBag, TrendingUp, AlertCircle, Settings } from 'lucide-react';
 
@@ -15,6 +16,7 @@ interface Stats {
 
 export function AdminDashboard() {
   const navigate = useNavigate();
+  const { getSetting } = useSettings();
   const [stats, setStats] = useState<Stats>({
     totalOrders: 0,
     totalRevenue: 0,
@@ -84,7 +86,7 @@ export function AdminDashboard() {
     },
     {
       label: 'Total Revenue',
-      value: `₦${stats.totalRevenue.toFixed(2)}`,
+      value: `${getSetting('currency_symbol', '₦')}${stats.totalRevenue.toFixed(2)}`,
       icon: TrendingUp,
       color: 'green',
       onClick: () => navigate('/admin/orders'),
