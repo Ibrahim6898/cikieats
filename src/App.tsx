@@ -21,6 +21,7 @@ import { AdminRiders } from './pages/admin/AdminRiders';
 import { AdminOrders } from './pages/admin/AdminOrders';
 import { AdminUsers } from './pages/admin/AdminUsers';
 import { AdminReviews } from './pages/admin/AdminReviews';
+import { AdminSettings } from './pages/admin/AdminSettings';
 import { Navbar } from './components/Navbar';
 
 
@@ -194,6 +195,14 @@ function AppRoutes() {
         />
 
         <Route path="*" element={<Navigate to="/" replace />} />
+        <Route
+          path="/admin/settings"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminSettings />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </>
   );

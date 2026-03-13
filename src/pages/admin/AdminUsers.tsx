@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Mail, Shield, Calendar } from 'lucide-react';
 
 interface User {
   id: string;
@@ -28,18 +28,27 @@ export function AdminUsers() {
           id,
           name,
           email,
-          created_at,
-          user_roles(role)
+          created_at
         `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
+      // Fetch roles separately for reliability if the join fails or is complex
+      const { data: rolesData } = await supabase
+        .from('user_roles')
+        .select('user_id, role');
+
+      const rolesMap = (rolesData || []).reduce((acc: any, curr: any) => {
+        acc[curr.user_id] = curr.role;
+        return acc;
+      }, {});
+
       const formattedUsers = (data || []).map((user: any) => ({
         id: user.id,
         name: user.name,
         email: user.email,
-        role: user.user_roles?.[0]?.role || 'unknown',
+        role: rolesMap[user.id] || 'unknown',
         created_at: user.created_at,
       }));
 
@@ -75,57 +84,74 @@ export function AdminUsers() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <button
-            onClick={() => navigate('/admin')}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            Back to Dashboard
-          </button>
+    <div className="min-h-screen bg-[#f8fafc] pb-20">
+      {/* Header */}
+      <div className="sticky top-0 z-50 bg-white/80 backdrop-blur-lg border-b border-gray-100 mb-8">
+        <div className="max-w-7xl mx-auto px-6 py-5 flex items-center justify-between">
+          <div className="flex items-center gap-6">
+            <button
+              onClick={() => navigate('/admin')}
+              className="p-3 bg-white rounded-2xl hover:bg-gray-50 transition border border-gray-100 shadow-sm group"
+            >
+              <ArrowLeft className="w-5 h-5 text-gray-400 group-hover:text-gray-900 transition-colors" />
+            </button>
+            <div>
+              <h1 className="text-2xl font-black text-gray-900 tracking-tighter uppercase italic leading-none mb-1">
+                Platform <span className="text-green-600">Users</span>
+              </h1>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">User Base & Account Oversight</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+             <div className="px-4 py-2 bg-green-50 rounded-xl border border-green-100">
+                <span className="text-[10px] font-black text-green-700 uppercase tracking-widest">{users.length} Total Accounts</span>
+             </div>
+          </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Platform Users</h1>
-
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="glass-card rounded-[40px] premium-shadow border border-white/50 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                    Name
-                  </th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                    Email
-                  </th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                    Role
-                  </th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                    Joined
-                  </th>
+              <thead>
+                <tr className="border-b border-gray-50">
+                  <th className="px-8 py-6 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Name</th>
+                  <th className="px-8 py-6 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Account Info</th>
+                  <th className="px-8 py-6 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Permission Level</th>
+                  <th className="px-8 py-6 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Registration</th>
                 </tr>
               </thead>
-              <tbody className="divide-y">
+              <tbody className="divide-y divide-gray-50">
                 {users.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {user.name}
+                  <tr key={user.id} className="group hover:bg-gray-50/50 transition-colors">
+                    <td className="px-8 py-6">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center font-black text-gray-400 uppercase">
+                          {user.name.charAt(0)}
+                        </div>
+                        <span className="font-bold text-gray-900">{user.name}</span>
+                      </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {user.email}
+                    <td className="px-8 py-6">
+                      <div className="flex items-center gap-2 text-gray-500 font-medium">
+                        <Mail className="w-4 h-4 text-gray-300" />
+                        {user.email}
+                      </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${getRoleBadge(user.role)}`}>
-                        {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-                      </span>
+                    <td className="px-8 py-6">
+                      <div className="flex items-center gap-2">
+                        <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${getRoleBadge(user.role)}`}>
+                          <Shield className="w-3 h-3 inline-block mr-1 opacity-70" />
+                          {user.role}
+                        </span>
+                      </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {new Date(user.created_at).toLocaleDateString()}
+                    <td className="px-8 py-6">
+                      <div className="flex items-center gap-2 text-gray-500 font-bold text-xs uppercase tracking-tight">
+                        <Calendar className="w-4 h-4 text-gray-300" />
+                        {new Date(user.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </div>
                     </td>
                   </tr>
                 ))}

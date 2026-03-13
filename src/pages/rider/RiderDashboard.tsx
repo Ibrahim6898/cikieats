@@ -2,16 +2,13 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { AlertCircle, Bike, ShoppingBag, DollarSign, ToggleLeft, ToggleRight } from 'lucide-react';
+import { AlertCircle, Bike, ShoppingBag, Wallet, Banknote, ToggleLeft, ToggleRight, PauseCircle, Mail, XCircle, TrendingUp } from 'lucide-react';
 
 interface Rider {
   id: string;
-  user_id: string;
-  phone: string;
-  vehicle_type: string;
   status: string;
   is_online: boolean;
-  deliveries_completed: number;
+  vehicle_type: string;
 }
 
 export function RiderDashboard() {
@@ -19,37 +16,63 @@ export function RiderDashboard() {
   const navigate = useNavigate();
   const [rider, setRider] = useState<Rider | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
+  const [supportEmail, setSupportEmail] = useState('support@cikieats.com');
+  const [availableDeliveriesCount, setAvailableDeliveriesCount] = useState<number>(0);
   const [formData, setFormData] = useState({
-    phone: '',
-    vehicle_type: 'motorcycle',
+    vehicle_type: 'bicycle' as const,
+    phone_number: '',
   });
 
   useEffect(() => {
     if (user) {
       fetchRider();
+      fetchSupportEmail();
     }
   }, [user]);
+
+  const fetchSupportEmail = async () => {
+    try {
+      const { data } = await (supabase
+        .from('global_settings') as any)
+        .select('value')
+        .eq('key', 'support_email')
+        .maybeSingle();
+
+      if ((data as any)?.value) {
+        setSupportEmail((data as any).value);
+      }
+    } catch (error) {
+      console.error('Error fetching support email:', error);
+    }
+  };
 
   const fetchRider = async () => {
     if (!user) return;
     try {
-      const { data, error } = await supabase
-        .from('riders')
+      const { data, error } = await (supabase
+        .from('riders') as any)
         .select('*')
         .eq('user_id', user.id)
         .maybeSingle();
 
       if (error) throw error;
-      setRider(data);
-      if (!data) {
-        setShowForm(true);
+      setRider(data as any);
+      if ((data as any)?.status === 'approved') {
+        fetchAvailableDeliveries();
       }
     } catch (error) {
       console.error('Error fetching rider:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchAvailableDeliveries = async () => {
+    const { count } = await supabase
+      .from('orders')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'ready');
+    setAvailableDeliveriesCount(count || 0);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -59,23 +82,20 @@ export function RiderDashboard() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
-
     try {
       const { error } = await (supabase.from('riders') as any).insert({
         user_id: user.id,
-        phone: formData.phone,
         vehicle_type: formData.vehicle_type,
+        phone: formData.phone_number,
+        status: 'pending',
+        is_online: false,
       });
 
-      if (error) {
-        console.error('Rider profile creation error:', error);
-        throw new Error(`Failed to create profile: ${error.message}`);
-      }
-      await fetchRider();
-      setShowForm(false);
-    } catch (error: any) {
+      if (error) throw error;
+      fetchRider();
+    } catch (error) {
       console.error('Error creating rider profile:', error);
-      alert(`Failed to create profile: ${error.message || 'Please try again.'}`);
+      alert('Failed to create rider profile');
     }
   };
 
@@ -102,51 +122,50 @@ export function RiderDashboard() {
     );
   }
 
-  if (!rider || showForm) {
+  if (!rider) {
     return (
-      <div className="min-h-screen bg-gray-50 py-8">
-        <div className="max-w-2xl mx-auto px-4">
-          <div className="bg-white rounded-xl shadow-sm p-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Become a Rider</h1>
-            <p className="text-gray-600 mb-6">Complete your profile to start accepting deliveries</p>
+      <div className="min-h-screen bg-[#fafafa] py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md mx-auto">
+          <div className="glass-card rounded-[40px] p-10 premium-shadow border border-white/50 text-center animate-in fade-in zoom-in-95 duration-500">
+            <div className="w-24 h-24 bg-green-50 rounded-[32px] flex items-center justify-center mx-auto mb-8 rotate-3 hover:rotate-6 transition-transform">
+              <Bike className="w-12 h-12 text-green-600" />
+            </div>
+            <h1 className="text-3xl font-black text-gray-900 tracking-tighter uppercase leading-none mb-4">Join the Fleet</h1>
+            <p className="text-gray-500 font-bold mb-10 leading-relaxed">
+              Become a CIKIEats rider and start earning today. Flexible hours, instant payouts.
+            </p>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-6 text-left">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Phone Number
-                </label>
-                <input
-                  type="tel"
-                  name="phone"
-                  required
-                  value={formData.phone}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Vehicle Type
-                </label>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Vehicle Type</label>
                 <select
                   name="vehicle_type"
                   value={formData.vehicle_type}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-[20px] focus:ring-4 focus:ring-green-500/10 focus:border-green-500 transition-all font-bold text-gray-900 appearance-none cursor-pointer"
                 >
-                  <option value="motorcycle">Motorcycle</option>
                   <option value="bicycle">Bicycle</option>
+                  <option value="motorbike">Motorbike</option>
                   <option value="car">Car</option>
-                  <option value="truck">Truck</option>
                 </select>
               </div>
-
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Phone Number</label>
+                <input
+                  type="tel"
+                  name="phone_number"
+                  required
+                  value={formData.phone_number}
+                  onChange={handleChange}
+                  placeholder="+234..."
+                  className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-[20px] focus:ring-4 focus:ring-green-500/10 focus:border-green-500 transition-all font-bold text-gray-900"
+                />
+              </div>
               <button
                 type="submit"
-                className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition font-medium"
+                className="w-full bg-green-600 text-white py-5 rounded-[24px] font-black uppercase tracking-widest hover:bg-green-700 transition-all premium-shadow active:scale-[0.98] mt-4"
               >
-                Create Profile
+                Apply to Deliver
               </button>
             </form>
           </div>
@@ -155,15 +174,56 @@ export function RiderDashboard() {
     );
   }
 
+  if (rider.status === 'suspended') {
+    return (
+      <div className="min-h-screen bg-[#fafafa] flex items-center justify-center p-6">
+        <div className="glass-card rounded-[40px] p-12 max-w-lg text-center premium-shadow border border-white/50 animate-in fade-in zoom-in-95 duration-500">
+          <div className="w-24 h-24 bg-red-50 rounded-[32px] flex items-center justify-center mx-auto mb-8 border border-red-100">
+            <PauseCircle className="w-12 h-12 text-red-600" />
+          </div>
+          <h2 className="text-3xl font-black text-gray-900 tracking-tighter uppercase mb-6 leading-none">Account Suspended</h2>
+          <p className="text-gray-500 font-bold mb-10 leading-relaxed">
+            Your delivery account has been suspended by the administration. 
+            You will not be able to receive new delivery requests during this time.
+          </p>
+          <div className="pt-8 border-t border-gray-50">
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-6">
+              Need assistance?
+            </p>
+            <a
+              href={`mailto:${supportEmail}?subject=Rider Suspension Inquiry: ${user?.email || 'Rider'} (${rider.id})`}
+              className="inline-flex items-center gap-3 px-10 py-5 bg-green-600 text-white font-black rounded-[24px] hover:bg-green-700 transition-all shadow-xl shadow-green-100 active:scale-95 uppercase tracking-tight"
+            >
+              <Mail className="w-5 h-5" />
+              Contact Support
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (rider.status === 'pending') {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl shadow-sm p-8 max-w-md text-center">
-          <AlertCircle className="w-16 h-16 text-orange-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Pending Approval</h2>
-          <p className="text-gray-600">
-            Your rider profile is awaiting admin approval. You'll be notified once approved.
+      <div className="min-h-screen bg-[#fafafa] flex items-center justify-center p-6">
+        <div className="glass-card rounded-[40px] p-12 max-w-lg text-center premium-shadow border border-white/50 animate-in fade-in zoom-in-95 duration-500">
+          <div className="w-24 h-24 bg-orange-50 rounded-[32px] flex items-center justify-center mx-auto mb-8 border border-orange-100">
+            <AlertCircle className="w-12 h-12 text-orange-600" />
+          </div>
+          <h2 className="text-3xl font-black text-gray-900 tracking-tighter uppercase mb-6 leading-none">Application Pending</h2>
+          <p className="text-gray-500 font-bold mb-10 leading-relaxed">
+            Your application is currently being reviewed by our team. 
+            We'll notify you via email once your account is activated.
           </p>
+          <div className="pt-8 border-t border-gray-50">
+             <a
+              href={`mailto:${supportEmail}?subject=Rider Application Status: ${user?.email || 'Rider'}`}
+              className="inline-flex items-center gap-3 px-8 py-4 bg-gray-900 text-white font-black rounded-[20px] hover:bg-black transition-all shadow-xl shadow-gray-200 active:scale-95 uppercase text-xs tracking-widest"
+            >
+              <Mail className="w-4 h-4" />
+              Check Status
+            </a>
+          </div>
         </div>
       </div>
     );
@@ -171,107 +231,130 @@ export function RiderDashboard() {
 
   if (rider.status === 'rejected') {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl shadow-sm p-8 max-w-md text-center">
-          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Application Rejected</h2>
-          <p className="text-gray-600">
-            Unfortunately, your rider application was not approved. Please contact support.
+      <div className="min-h-screen bg-[#fafafa] flex items-center justify-center p-6">
+        <div className="glass-card rounded-[40px] p-12 max-w-lg text-center premium-shadow border border-white/50 animate-in fade-in zoom-in-95 duration-500">
+          <div className="w-24 h-24 bg-red-50 rounded-[32px] flex items-center justify-center mx-auto mb-8 border border-red-100">
+            <XCircle className="w-12 h-12 text-red-600" />
+          </div>
+          <h2 className="text-3xl font-black text-gray-900 tracking-tighter uppercase mb-6 leading-none">Application Declined</h2>
+          <p className="text-gray-500 font-bold mb-10 leading-relaxed">
+            Unfortunately, your application to join the delivery fleet could not be approved at this time.
           </p>
+           <div className="pt-8 border-t border-gray-50">
+             <a
+              href={`mailto:${supportEmail}?subject=Rider Rejection Inquiry: ${user?.email || 'Rider'}`}
+              className="inline-flex items-center gap-3 px-8 py-4 bg-gray-900 text-white font-black rounded-[20px] hover:bg-black transition-all shadow-xl shadow-gray-200 active:scale-95 uppercase text-xs tracking-widest"
+            >
+              <Mail className="w-4 h-4" />
+              Request Clarification
+            </a>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+    <div className="min-h-screen bg-[#fafafa]">
+      <div className="navbar-glass sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-gray-900">Rider Dashboard</h1>
-            <button
-              onClick={toggleOnline}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition ${
-                rider.is_online
-                  ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              {rider.is_online ? (
-                <>
-                  <ToggleRight className="w-5 h-5" />
-                  Online
-                </>
-              ) : (
-                <>
-                  <ToggleLeft className="w-5 h-5" />
-                  Offline
-                </>
-              )}
-            </button>
+            <div className="flex items-center gap-4">
+               <div className="p-3 bg-green-600 rounded-2xl shadow-lg shadow-green-100 rotate-3">
+                 <Bike className="w-8 h-8 text-white" />
+               </div>
+               <div>
+                 <h1 className="text-2xl font-black text-gray-900 tracking-tighter uppercase leading-none">Rider Hub</h1>
+                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Operational Control</p>
+               </div>
+            </div>
+            
+            <div className="flex items-center gap-4">
+              <div className={`flex items-center gap-3 px-6 py-3 rounded-2xl border transition-all ${
+                rider.is_online ? 'bg-green-50 border-green-100 text-green-700' : 'bg-gray-50 border-gray-100 text-gray-500'
+              }`}>
+                <div className={`w-2.5 h-2.5 rounded-full ${rider.is_online ? 'bg-green-500 animate-pulse' : 'bg-gray-300'}`}></div>
+                <span className="text-xs font-black uppercase tracking-widest">{rider.is_online ? 'Status: Active' : 'Status: Offline'}</span>
+                <button
+                  onClick={toggleOnline}
+                  className="ml-4 p-2 bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md active:scale-90 transition-all"
+                >
+                  {rider.is_online ? <ToggleRight className="w-6 h-6 text-green-600" /> : <ToggleLeft className="w-6 h-6 text-gray-400" />}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <div className="flex items-center gap-4">
-              <div className="bg-green-100 p-3 rounded-full">
-                <ShoppingBag className="w-8 h-8 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Total Deliveries</p>
-                <p className="text-3xl font-bold text-gray-900">{rider.deliveries_completed}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <div className="flex items-center gap-4">
-              <div className="bg-blue-100 p-3 rounded-full">
-                <Bike className="w-8 h-8 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Vehicle</p>
-                <p className="text-lg font-bold text-gray-900 capitalize">{rider.vehicle_type}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <div className="flex items-center gap-4">
-              <div className="bg-orange-100 p-3 rounded-full">
-                <DollarSign className="w-8 h-8 text-orange-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Status</p>
-                <p className="text-lg font-bold text-gray-900 capitalize">
-                  {rider.is_online ? 'Online' : 'Offline'}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
           <button
             onClick={() => navigate('/rider/orders')}
-            className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition text-left"
+            className="glass-card rounded-[32px] p-8 text-left premium-shadow hover:scale-[1.02] transition-transform duration-300 group border border-white/50"
           >
-            <ShoppingBag className="w-12 h-12 text-green-600 mb-4" />
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Available Deliveries</h3>
-            <p className="text-gray-600">View and accept delivery orders</p>
+            <div className="flex items-center justify-between mb-8">
+              <div className="p-4 bg-blue-50 rounded-2xl text-blue-600 group-hover:rotate-6 transition-transform">
+                <ShoppingBag className="w-8 h-8" />
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Active Pool</p>
+                <p className="text-2xl font-black text-blue-600">{availableDeliveriesCount}</p>
+              </div>
+            </div>
+            <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight leading-none mb-2">Deliveries</h3>
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Available Jobs</p>
           </button>
 
           <button
             onClick={() => navigate('/rider/earnings')}
-            className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition text-left"
+            className="glass-card rounded-[32px] p-8 text-left premium-shadow hover:scale-[1.02] transition-transform duration-300 group border border-white/50"
           >
-            <DollarSign className="w-12 h-12 text-green-600 mb-4" />
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Earnings</h3>
-            <p className="text-gray-600">Track your earnings and statistics</p>
+            <div className="flex items-center justify-between mb-8">
+              <div className="p-4 bg-green-50 rounded-2xl text-green-600 group-hover:rotate-6 transition-transform">
+                <Wallet className="w-8 h-8" />
+              </div>
+              <TrendingUp className="w-6 h-6 text-green-200" />
+            </div>
+            <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight leading-none mb-2">Earnings</h3>
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">View Payouts</p>
           </button>
+
+          <div className="glass-card rounded-[32px] p-8 premium-shadow border border-white/50">
+             <div className="flex items-center justify-between mb-8">
+              <div className="p-4 bg-orange-50 rounded-2xl text-orange-600 group-hover:rotate-6 transition-transform">
+                <Bike className="w-8 h-8" />
+              </div>
+            </div>
+            <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight leading-none mb-2">{rider.vehicle_type}</h3>
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Registered Vehicle</p>
+          </div>
+
+          <div className="glass-card rounded-[32px] p-8 premium-shadow border border-white/50">
+             <div className="flex items-center justify-between mb-8">
+              <div className="p-4 bg-purple-50 rounded-2xl text-purple-600 group-hover:rotate-6 transition-transform">
+                <Banknote className="w-8 h-8" />
+              </div>
+            </div>
+            <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight leading-none mb-2">Direct</h3>
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Instant Payouts</p>
+          </div>
+        </div>
+
+        <div className="glass-card rounded-[40px] p-12 premium-shadow border border-white/50 text-center bg-gray-900/5">
+          <div className="max-w-2xl mx-auto">
+            <h2 className="text-3xl font-black text-gray-900 tracking-tighter uppercase mb-6 leading-none">Real-Time Dispatch</h2>
+            <p className="text-gray-500 font-bold mb-10 leading-relaxed">
+              When you're online, available orders in your area will appear here. 
+              Ensure your notifications are enabled to catch peak-hour bonuses.
+            </p>
+            <button
+              onClick={() => navigate('/rider/orders')}
+              className="px-12 py-5 bg-gray-900 text-white font-black rounded-[24px] uppercase tracking-widest hover:bg-black transition-all premium-shadow active:scale-95"
+            >
+              Enter Work Pool
+            </button>
+          </div>
         </div>
       </div>
     </div>

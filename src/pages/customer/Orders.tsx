@@ -26,7 +26,7 @@ const statusSteps = [
   { key: 'accepted', label: 'Accepted' },
   { key: 'preparing', label: 'Preparing' },
   { key: 'ready', label: 'Ready for Pickup' },
-  { key: 'picked_up', label: 'Out for Delivery' },
+  { key: 'picked_up', label: 'On the Way' },
   { key: 'delivered', label: 'Delivered' },
 ];
 
@@ -116,95 +116,112 @@ export function Orders() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <h1 className="text-2xl font-bold text-gray-900">My Orders</h1>
+    <div className="min-h-screen bg-[#f8fafc] pb-20">
+      <div className="glass-card sticky top-20 z-50 px-4 sm:px-6 lg:px-8 py-6 mx-4 mt-4 rounded-2xl border-white/40 shadow-xl">
+        <div className="max-w-7xl mx-auto">
+          <h1 className="text-3xl font-black text-gray-900 tracking-tight">My Food Journey</h1>
+          <p className="text-sm text-gray-400 font-bold uppercase tracking-widest mt-1">Track and manage your orders</p>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="max-w-4xl mx-auto px-4 py-12">
         {orders.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-sm p-12 text-center">
-            <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-gray-900 mb-2">No orders yet</h2>
-            <p className="text-gray-600">Start ordering to see your order history</p>
+          <div className="bg-white p-16 rounded-[3rem] shadow-2xl shadow-black/5 border border-white text-center">
+            <div className="bg-green-50 w-24 h-24 rounded-[2rem] flex items-center justify-center mx-auto mb-8">
+              <Package className="w-12 h-12 text-green-400" />
+            </div>
+            <h2 className="text-3xl font-black text-gray-900 mb-4 tracking-tight">No orders yet</h2>
+            <p className="text-gray-500 font-medium mb-10 max-w-xs mx-auto">
+              Ready to taste something amazing? Start exploring restaurants now!
+            </p>
+            <button
+              onClick={() => navigate('/')}
+              className="bg-green-600 text-white px-10 py-5 rounded-[2rem] hover:bg-green-700 transition-all font-black uppercase tracking-widest shadow-xl shadow-green-100 hover-scale"
+            >
+              Start Exploring
+            </button>
           </div>
         ) : (
-          <div className="space-y-6">
-            {orders.map((order) => (
-              <button
-                key={order.id}
-                onClick={() => navigate(`/orders/${order.id}`)}
-                className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition text-left w-full"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <div className="flex items-center gap-3 mb-2">
-                      {getStatusIcon(order.status)}
-                      <h3 className="font-bold text-lg">
-                        {order.vendors.restaurant_name}
-                      </h3>
-                    </div>
-                    <p className="text-sm text-gray-600">
-                      {new Date(order.created_at).toLocaleDateString()} at{' '}
-                      {new Date(order.created_at).toLocaleTimeString()}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-bold text-green-600">
-                      ₦{order.total_price.toFixed(2)}
-                    </p>
-                    <p className="text-sm text-gray-600 capitalize">
-                      {order.status.replace('_', ' ')}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mb-4">
-                  <p className="text-sm text-gray-600">Items:</p>
-                  <ul className="text-sm mt-1">
-                    {order.order_items.map((item, idx) => (
-                      <li key={idx} className="text-gray-900">
-                        {item.menu_items.name} x{item.quantity}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                {order.status !== 'cancelled' && order.status !== 'delivered' && (
-                  <div className="mt-6">
-                    <div className="flex items-center justify-between relative">
-                      <div className="absolute top-3 left-0 right-0 h-1 bg-gray-200">
-                        <div
-                          className="h-full bg-green-600 transition-all"
-                          style={{
-                            width: `${(getStatusProgress(order.status) / (statusSteps.length - 1)) * 100}%`,
-                          }}
-                        />
-                      </div>
-                      {statusSteps.map((step, idx) => (
-                        <div
-                          key={step.key}
-                          className="relative flex flex-col items-center"
-                        >
-                          <div
-                            className={`w-6 h-6 rounded-full border-2 ${
-                              getStatusProgress(order.status) >= idx
-                                ? 'bg-green-600 border-green-600'
-                                : 'bg-white border-gray-300'
-                            } z-10`}
-                          />
-                          <span className="text-xs text-gray-600 mt-2 text-center max-w-20">
-                            {step.label}
-                          </span>
+          <div className="grid gap-8">
+            {orders.map((order) => {
+              const isActive = !['delivered', 'cancelled'].includes(order.status);
+              return (
+                <button
+                  key={order.id}
+                  onClick={() => navigate(`/orders/${order.id}`)}
+                  className={`bg-white rounded-[2.5rem] shadow-sm hover:shadow-2xl transition-all duration-500 overflow-hidden border border-gray-100 group text-left w-full hover-scale ${isActive ? 'ring-4 ring-green-600/10' : ''}`}
+                >
+                  <div className="p-8">
+                    <div className="flex items-start justify-between mb-8">
+                      <div className="flex items-center gap-4">
+                        <div className={`p-4 rounded-2xl shadow-lg ${isActive ? 'bg-green-600 shadow-green-100' : 'bg-gray-100'}`}>
+                          {getStatusIcon(order.status)}
                         </div>
-                      ))}
+                        <div>
+                          <h3 className="font-black text-2xl text-gray-900 group-hover:text-green-600 transition-colors uppercase tracking-tight">
+                            {order.vendors?.restaurant_name || 'Restaurant'}
+                          </h3>
+                          <p className="text-sm text-gray-400 font-bold mt-1">
+                            {new Date(order.created_at).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-3xl font-black text-green-600 tracking-tighter">
+                          ₦{order.total_price.toFixed(2)}
+                        </p>
+                        <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest mt-2 ${isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                          {order.status.replace('_', ' ')}
+                        </span>
+                      </div>
                     </div>
+
+                    <div className="flex items-center gap-3 py-4 border-y border-gray-50 mb-8">
+                      <Package className="w-4 h-4 text-gray-300" />
+                      <div className="flex flex-wrap gap-2">
+                        {order.order_items.map((item, idx) => (
+                          <span key={idx} className="text-xs font-bold text-gray-500 bg-gray-50 px-3 py-1 rounded-full border border-gray-100">
+                            {item.menu_items.name} <span className="text-green-600 ml-1">x{item.quantity}</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {isActive && (
+                      <div className="relative pt-6">
+                        <div className="flex justify-between items-center mb-4">
+                           <span className="text-xs font-black text-green-600 uppercase tracking-widest animate-pulse">Live Order Status</span>
+                           <span className="text-xs font-black text-gray-400 uppercase tracking-widest">
+                             {Math.round((getStatusProgress(order.status) / (statusSteps.length - 1)) * 100)}% Complete
+                           </span>
+                        </div>
+                        <div className="h-3 bg-gray-100 rounded-full overflow-hidden shadow-inner">
+                          <div
+                            className="h-full bg-gradient-to-r from-green-400 to-green-600 progress-glow transition-all duration-1000"
+                            style={{
+                              width: `${(getStatusProgress(order.status) / (statusSteps.length - 1)) * 100}%`,
+                            }}
+                          />
+                        </div>
+                        <div className="flex justify-between mt-4 overflow-hidden">
+                           {statusSteps.map((step, idx) => {
+                             const isCompleted = getStatusProgress(order.status) >= idx;
+                             return (
+                               <div key={step.key} className="flex flex-col items-center gap-2">
+                                  <div className={`w-2 h-2 rounded-full transition-all duration-500 ${isCompleted ? 'bg-green-600 scale-125 shadow-[0_0_10px_rgba(22,163,74,0.5)]' : 'bg-gray-200'}`} />
+                                  <span className={`text-[10px] font-black uppercase tracking-tighter truncate max-w-[60px] ${isCompleted ? 'text-green-600' : 'text-gray-300'}`}>
+                                    {step.label.split(' ')[0]}
+                                  </span>
+                               </div>
+                             );
+                           })}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
-              </button>
-            ))}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>

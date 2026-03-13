@@ -114,25 +114,25 @@ export function MenuManagement() {
 
     try {
       if (editingItem) {
-        const { error } = await supabase
-          .from('menu_items')
+        const { error } = await (supabase
+          .from('menu_items') as any)
           .update({
             name: formData.name,
             description: formData.description,
             price: parseFloat(formData.price),
             image_url: formData.image_url || null,
-          } as any)
+          })
           .eq('id', editingItem.id);
 
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('menu_items').insert({
+        const { error } = await (supabase.from('menu_items') as any).insert({
           vendor_id: vendorId,
           name: formData.name,
           description: formData.description,
           price: parseFloat(formData.price),
           image_url: formData.image_url || null,
-        } as any);
+        });
 
         if (error) throw error;
       }
@@ -168,7 +168,7 @@ export function MenuManagement() {
     if (!confirm('Are you sure you want to delete this item?')) return;
 
     try {
-      const { error } = await supabase.from('menu_items').delete().eq('id', id);
+      const { error } = await (supabase.from('menu_items') as any).delete().eq('id', id);
       if (error) throw error;
       await fetchVendorAndMenu();
     } catch (error) {
@@ -190,12 +190,6 @@ export function MenuManagement() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'available': return 'bg-green-100 text-green-700';
-      default: return 'bg-gray-100 text-gray-700';
-    }
-  };
 
   if (loading) {
     return (

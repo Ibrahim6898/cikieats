@@ -50,7 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .maybeSingle();
 
       if (error) throw error;
-      setRole(data?.role ?? null);
+      setRole((data as any)?.role ?? null);
     } catch (error) {
       console.error('Error fetching user role:', error);
       setRole(null);
